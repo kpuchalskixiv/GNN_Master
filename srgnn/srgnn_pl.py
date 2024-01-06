@@ -112,6 +112,7 @@ class SRGNN_model(pl.LightningModule):
         self.model=SessionGraph(opt, n_node)
         if init_embeddings is not None:
             self.model.embedding=nn.Embedding.from_pretrained(torch.FloatTensor(init_embeddings))
+        self.unfreeze_epoch=opt.unfreeze_epoch
     
     def forward(self, x):
         for i in range(len(x)):
@@ -197,6 +198,10 @@ class SRGNN_model(pl.LightningModule):
 
     def freeze_embeddings(self):
         self.model.embedding.requires_grad_(False)
+
+    def on_train_epoch_end(self):
+        if self.current_epoch==self.unfreeze_epoch:
+            self.unfreeze_embeddings()
     
 
 def data_masks(all_usr_pois, item_tail):
