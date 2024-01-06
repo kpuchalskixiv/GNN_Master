@@ -106,7 +106,7 @@ class SessionGraph(Module):
 
 
 class SRGNN_model(pl.LightningModule):
-    def __init__(self, opt, n_node, init_embeddings=None, **kwargs):
+    def __init__(self, opt=None, n_node=0, init_embeddings=None, **kwargs):
         super().__init__()
         self.save_hyperparameters(ignore=['opt', 'init_embeddings'])
         self.model=SessionGraph(opt, n_node)
@@ -352,3 +352,27 @@ def worker_init_fn(worker_id):
     dataset.start = overall_start + worker_id * per_worker
     dataset.end = min(dataset.start + per_worker, overall_end)
     dataset.reinit()
+
+class SRGNN_sampler(data_utils.Sampler):
+    def __init__(self, dataset, batch_size, shuffle=False, drop_last=False):
+        self.dataset=dataset
+        self.batch_size=batch_size
+        self.shuffle=shuffle
+        self.drop_last=drop_last
+
+    def __len__(self):
+        return self.dataset.length
+    
+    def __iter__(self):
+        order=np.arange(len(self))
+        if self.shuffle:
+            np.random.shuffle(order)
+        if len(self)%self.batch_size:
+            for i in range(0, len(self)-self.batch_size, self.batch_size):
+                yield order[i:i+self.batch_size]
+            if not self.drop_last:
+                yield order[-(len(self)%self.batch_size):]
+        else:
+            for i in range(0, len(self), self.batch_size):
+                yield order[i:i+self.batch_size]
+       # raise IndexError('Done iterating')
