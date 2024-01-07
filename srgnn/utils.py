@@ -99,9 +99,9 @@ def normalize(embeddings, new_mean=0, new_std=1):
     return embeddings
 
 
-def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node):
+def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node, epochs=3):
     embedding_model = Item2Vec(vector_size=opt.hiddenSize)
-    embedding_model.train(clicks_pdf, item_col='item_id', user_col='session_id', epochs=3)
+    embedding_model.train(clicks_pdf, item_col='item_id', user_col='session_id', epochs=epochs)
     embeddings_pdf = embedding_model.generate_item_embeddings()
     embeddings_pdf = embeddings_pdf.loc[embeddings_pdf.index.isin(items_in_train)]
     embeddings_pdf = pd.DataFrame(normalize(embeddings_pdf.values), index=embeddings_pdf.index)

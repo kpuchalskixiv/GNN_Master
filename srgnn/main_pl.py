@@ -67,7 +67,7 @@ def main():
         items_in_train=pickle.load(open(f'../datasets/{opt.dataset}/items_in_train.txt', 'rb'))
         item2id=pickle.load(open(f'../datasets/{opt.dataset}/item2id.txt', 'rb'))
 
-        embeddings = calculate_embeddings(opt, clicks_df, items_in_train, item2id, n_node)
+        embeddings = calculate_embeddings(opt, clicks_df, items_in_train, item2id, n_node, epochs=10)
         print('embeddingas calculated')
         del clicks_df
         del items_in_train

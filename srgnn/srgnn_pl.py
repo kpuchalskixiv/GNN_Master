@@ -98,6 +98,18 @@ class SessionGraph(Module):
         b = self.embedding.weight[1:]  # n_nodes x latent_size
         scores = torch.matmul(a, b.transpose(1, 0))
         return scores
+    
+    def session_embedding(self,  hidden, mask):
+        ht = hidden[torch.arange(mask.shape[0]).long(), torch.sum(mask, 1) - 1]  # batch_size x latent_size
+
+        q1 = self.linear_one(ht).view(ht.shape[0], 1, ht.shape[1])  # batch_size x 1 x latent_size
+        q2 = self.linear_two(hidden)  # batch_size x seq_length x latent_size
+        alpha = self.linear_three(torch.sigmoid(q1 + q2))
+        a = torch.sum(alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1)
+        
+        if not self.nonhybrid:
+            a = self.linear_transform(torch.cat([a, ht], 1))
+        return a
 
     def forward(self, inputs, A):
         hidden = self.embedding(inputs)
@@ -187,6 +199,18 @@ class SRGNN_model(pl.LightningModule):
         embs=self.model.embedding(items)
         return embs
     
+    def get_session_embeddings(self, batch):
+        x=batch[:-1]
+        for i in range(len(x)):
+            x[i]=x[i].squeeze()
+        alias_inputs, A, items, mask = x
+        items=items.to(torch.int32)
+        A=A.to(torch.float32)
+        hidden = self.model(items, A)
+        get = lambda i: hidden[i][alias_inputs[i]]
+        seq_hidden = torch.stack([get(i) for i in torch.arange(len(alias_inputs)).long()])
+        return self.model.session_embedding(seq_hidden, mask)
+
     def get_gnn_embeddings(self, batch):
         _, A, items, _ = x
         A=A.to(torch.float32)
@@ -320,6 +344,9 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
             idxs=[idxs]
        # print(idxs)
         inputs, mask, targets = self.inputs[idxs], self.mask[idxs], self.targets[idxs]
+        non_zero_cols=(mask!=0).sum(axis=0)!=0
+        inputs=inputs[:,non_zero_cols]
+        mask=mask[:,non_zero_cols]
         items, n_node, A, alias_inputs = [], [], [], []
         for u_input in inputs:
             n_node.append(len(np.unique(u_input)))
