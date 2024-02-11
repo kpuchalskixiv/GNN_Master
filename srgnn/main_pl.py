@@ -62,6 +62,7 @@ def main():
     else:
         n_node = 310
 
+    embeddings=None
     if opt.pretrained_embedings:
         clicks_df=pickle.load(open(f'../datasets/{opt.dataset}/yoo_df.txt', 'rb'))
         items_in_train=pickle.load(open(f'../datasets/{opt.dataset}/items_in_train.txt', 'rb'))
@@ -89,7 +90,7 @@ def main():
                           sampler=SRGNN_sampler(val_dataset, opt.batchSize, shuffle=False, drop_last=False)
                          )
 
-    model=SRGNN_model(opt, n_node, init_embeddings=None, **(opt.__dict__))
+    model=SRGNN_model(opt, n_node, init_embeddings=embeddings, **(opt.__dict__))
     wandb_logger = pl.loggers.WandbLogger(project='GNN_master',entity="kpuchalskixiv",log_model="all")
     trainer=pl.Trainer(max_epochs=60,
                    limit_train_batches=train_dataset.length//opt.batchSize,
