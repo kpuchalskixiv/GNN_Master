@@ -31,7 +31,7 @@ parser.add_argument('--lr_dc', type=float, default=0.1, help='learning rate deca
 parser.add_argument('--lr_dc_step', type=int, default=3, help='the number of steps after which the learning rate decay')
 parser.add_argument('--l2', type=float, default=1e-5, help='l2 penalty')  # [0.001, 0.0005, 0.0001, 0.00005, 0.00001]
 parser.add_argument('--step', type=int, default=1, help='gnn propogation steps')
-parser.add_argument('--patience', type=int, default=10, help='the number of epoch to wait before early stop ')
+parser.add_argument('--patience', type=int, default=6, help='the number of epoch to wait before early stop ')
 parser.add_argument('--nonhybrid', action='store_true', help='only use the global preference to predict')
 parser.add_argument('--validation', action='store_true', help='validation')
 parser.add_argument('--valid_portion', type=float, default=0.1, help='split the portion of training set as validation set')
@@ -96,7 +96,7 @@ def main():
                    limit_train_batches=train_dataset.length//opt.batchSize,
                    limit_val_batches=val_dataset.length//opt.batchSize,
                    callbacks=[
-                              EarlyStopping(monitor="val_loss", patience=6, mode="min", check_finite=True)],
+                              EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True)],
                    logger=wandb_logger
                   )
     trainer.fit(model=model, 
