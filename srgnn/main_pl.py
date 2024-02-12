@@ -42,6 +42,9 @@ print(opt)
                 
 
 def main():
+
+    assert opt.lr_dc_step<opt.patience, 'lr decrease patience is bigger or equal to early stopping patience. Please change either or both'
+
     torch.set_float32_matmul_precision('medium')
     train_data = pickle.load(open('../datasets/' + opt.dataset  + '/train.txt', 'rb'))
     if opt.validation:
