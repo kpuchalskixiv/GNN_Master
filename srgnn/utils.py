@@ -22,7 +22,7 @@ class fake_parser():
                  lr_dc_step=3,
                  l2=1e-5,
                  step=1,
-                 patience=10,
+                 patience=6,
                  nonhybrid=False,
                  validation=True,
                  valid_portion=0.1,
