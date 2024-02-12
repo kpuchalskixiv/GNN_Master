@@ -194,9 +194,11 @@ class SRGNN_model(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), 
                                      lr=self.hparams.lr, 
                                      weight_decay=self.hparams.l2)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
-                                                    step_size=self.hparams.lr_dc_step, 
-                                                    gamma=self.hparams.lr_dc)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                                                    optimizer, 
+                                                    patience=self.hparams.lr_dc_step, 
+                                                    factor=self.hparams.lr_dc,
+                                                    cooldown=1)
         return {'optimizer': optimizer, 'lr_scheduler':scheduler}
     
     def get_raw_embeddings(self, batch):
