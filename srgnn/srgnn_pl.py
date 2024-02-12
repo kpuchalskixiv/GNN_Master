@@ -128,7 +128,7 @@ class SRGNN_model(pl.LightningModule):
     
     def forward(self, x):
         for i in range(len(x)):
-            x[i]=x[i].squeeze()
+            x[i]=x[i].squeeze(dim=0)
             
 
         alias_inputs, A, items, mask = x
@@ -155,6 +155,9 @@ class SRGNN_model(pl.LightningModule):
         scores=self.forward(x)
         loss = self.model.loss_function(scores, targets - 1)
 
+        # get metrics @20        
+        # hit is recall/precision, that is
+        # proportion of cases having the desired item amongst the top-20 items
         sub_scores = scores.topk(20)[1]
         hit,mrr=[],[]
         for score, target in zip(sub_scores, targets):
@@ -170,6 +173,8 @@ class SRGNN_model(pl.LightningModule):
             self.log(stage+"_loss", loss, prog_bar=True)
             self.log(stage+"_hit", hit, prog_bar=True)
             self.log(stage+"_mrr", mrr, prog_bar=True)
+            if stage=='val':
+                self.log("lr", self.hparams.lr, prog_bar=True)
 
 
     def validation_step(self, batch, *args, **kwargs):
@@ -316,7 +321,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         inputs, mask, len_max = data_masks(inputs, [0])
         self.inputs = np.asarray(inputs)
         self.mask = np.asarray(mask)
-        self.len_max = len_max
+       # self.len_max = len_max
         self.targets = np.asarray(data[1])
         self.length = len(inputs)
         self.shuffle = shuffle
