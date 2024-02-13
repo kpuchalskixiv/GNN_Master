@@ -7,41 +7,45 @@ import os
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 
 import pickle
 import yaml
+import argparse
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--finetune', action='store_true', help='finetune')
+flags = parser.parse_args()
+
 
 def get_datasets_and_dataloaders(opt, cluster):
-    with open(f'../datasets/{opt.dataset}/gm_splits_{opt.hiddenSize}/train_{cluster}.txt', 'rb') as cluster_file:
+    with open(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/train_{cluster}.txt', 'rb') as cluster_file:
         train_data = pickle.load(cluster_file)
     if opt.validation:
         train_data, valid_data = split_validation(train_data, opt.valid_portion)
     train_dataset=SRGNN_Map_Dataset(train_data, shuffle=True)
     del train_data
-    val_dataset=SRGNN_Map_Dataset(valid_data)
+    val_dataset=SRGNN_Map_Dataset(valid_data, shuffle=False)
     del valid_data
 
+    val_batch_size=min(opt.batchSize, val_dataset.length)
     train_dataloader=DataLoader(train_dataset, 
-                                #batch_size=opt.batchSize, 
                                 num_workers=os.cpu_count(),  
-                            #  worker_init_fn=worker_init_fn, 
                                 sampler=SRGNN_sampler(train_dataset, opt.batchSize, shuffle=True, drop_last=True)
-                                #drop_last=
                                 )
-    #del train_dataset
     val_dataloader=DataLoader(val_dataset, 
-                            #batch_size=opt.batchSize, 
                             num_workers=os.cpu_count(), 
-                            sampler=SRGNN_sampler(val_dataset, opt.batchSize, shuffle=False, drop_last=False)
+                            sampler=SRGNN_sampler(val_dataset, val_batch_size, shuffle=False, drop_last=False)
 
-                            #  worker_init_fn=worker_init_fn
                             )
     return train_dataset, val_dataset, train_dataloader, val_dataloader
 
 def main():
     torch.set_float32_matmul_precision('medium')
-    run_id='run-20240209_162656-h23ej73g'
+
+    ## run_id of the global model to use as reference/finetune
+    run_id='run-20240213_043223-0zuvfc9x'
 
     ## same params as global model
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
@@ -55,9 +59,14 @@ def main():
             config[k]=config[k]['value']
 
     opt=fake_parser(**config)
-    ## maybe not the same
-    ## decrease validation ratio as we have much fewer data per model
+    if flags.finetune:
+        opt.pretrained_embedings=False
+        opt.unfreeze_epoch=1
+        opt.lr=1e-4
+    ## decrease validation ratio and increase patinece, as we have much fewer data per model
     opt.valid_portion=0.1
+    opt.patience=8
+    opt.lr_dc_step=2
     print(opt.__dict__)
 
     if opt.dataset == 'diginetica':
@@ -74,7 +83,7 @@ def main():
         n_node = 310
 
     embeddings=None
-    if opt.pretrained_embedings:
+    if not flags.finetune and opt.pretrained_embedings:
         clicks_df=pickle.load(open(f'../datasets/{opt.dataset}/yoo_df.txt', 'rb'))
         items_in_train=pickle.load(open(f'../datasets/{opt.dataset}/items_in_train.txt', 'rb'))
         item2id=pickle.load(open(f'../datasets/{opt.dataset}/item2id.txt', 'rb'))
@@ -86,26 +95,38 @@ def main():
         del item2id
 
     print('Start modelling clusters!')
-    no_clusters=sum(['train' in f for f in os.listdir(f'../datasets/{opt.dataset}/gm_splits_{opt.hiddenSize}/')])
-    for cluster in range(no_clusters):
+    no_clusters=32#max([f.split('_') for f in os.listdir(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/')])
+    for cluster in range(30, no_clusters):
         train_dataset, val_dataset, train_dataloader, val_dataloader = get_datasets_and_dataloaders(opt, cluster)
-
-        model=SRGNN_model(opt, n_node, 
-                    init_embeddings=embeddings,
-                    **(opt.__dict__))
+        print('Train sessions: ', train_dataset.length)
+        print('Validation sessions: ', val_dataset.length)
+        if flags.finetune:
+            model=SRGNN_model.load_from_checkpoint(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"+
+                                        os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0], opt=opt)
+            run_name=f'gm_finetune_cluster_{cluster}'
+        else:
+            # train from scratch
+            model=SRGNN_model(opt, n_node, 
+                        init_embeddings=embeddings,
+                        **(opt.__dict__))
+            run_name=f'gm_all_cluster_{cluster}'
 
         if opt.unfreeze_epoch>0:
             model.freeze_embeddings()
 
-        wandb_logger = pl.loggers.WandbLogger(project='GNN_master',entity="kpuchalskixiv", name=f'gm_cluster_{cluster}',
-                                        log_model="all")
+        wandb_logger = pl.loggers.WandbLogger(project='GNN_master',entity="kpuchalskixiv", 
+                                              name=run_name,
+                                        log_model=True)
         
-        trainer=pl.Trainer(max_epochs=20,
+        trainer=pl.Trainer(max_epochs=opt.epoch,
                     limit_train_batches=train_dataset.length//opt.batchSize,
-                    limit_val_batches=val_dataset.length//opt.batchSize,
+                    limit_val_batches=max(1, val_dataset.length//opt.batchSize),
                     callbacks=[
-                                EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True)],
-                    logger=wandb_logger
+                        EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True),
+                        LearningRateMonitor(),
+                      #  ModelCheckpoint(monitor="val_loss", mode="min"),
+                    ],
+                    logger=wandb_logger,
                     )
         trainer.fit(model=model, 
             train_dataloaders=train_dataloader,

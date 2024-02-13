@@ -15,7 +15,7 @@ from math import ceil
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 from srgnn_pl import SRGNN_model, SRGNN_Map_Dataset, SRGNN_sampler
 import torch
 import numpy as np
@@ -87,20 +87,20 @@ def main():
                             num_workers=os.cpu_count(),  
                             sampler=SRGNN_sampler(train_dataset, opt.batchSize, shuffle=True, drop_last=False)
                             )
-#del train_dataset
     val_dataloader=DataLoader(val_dataset, 
                           num_workers=os.cpu_count(), 
                           sampler=SRGNN_sampler(val_dataset, opt.batchSize, shuffle=False, drop_last=False)
                          )
 
     model=SRGNN_model(opt, n_node, init_embeddings=embeddings, **(opt.__dict__))
-    wandb_logger = pl.loggers.WandbLogger(project='GNN_master',entity="kpuchalskixiv",log_model="all")
+    wandb_logger = pl.loggers.WandbLogger(project='GNN_master',entity="kpuchalskixiv",log_model=True)
     trainer=pl.Trainer(max_epochs=60,
                    limit_train_batches=train_dataset.length//opt.batchSize,
                    limit_val_batches=val_dataset.length//opt.batchSize,
                    callbacks=[
                         EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True),
-                        LearningRateMonitor()
+                        LearningRateMonitor(),
+                        ModelCheckpoint(monitor="val_loss", mode="min"),
                     ],
                    logger=wandb_logger
                   )
