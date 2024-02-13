@@ -174,9 +174,6 @@ class SRGNN_model(pl.LightningModule):
             self.log(stage+"_loss", loss, prog_bar=True)
             self.log(stage+"_hit", hit, prog_bar=True)
             self.log(stage+"_mrr", mrr, prog_bar=True)
-            if stage=='val':
-                self.log("lr", self.lr, prog_bar=True)
-
 
     def validation_step(self, batch, *args, **kwargs):
         return self.evaluate(batch, 'val')
