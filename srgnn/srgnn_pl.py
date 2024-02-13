@@ -120,6 +120,7 @@ class SessionGraph(Module):
 class SRGNN_model(pl.LightningModule):
     def __init__(self, opt=None, n_node=0, init_embeddings=None, **kwargs):
         super().__init__()
+        self.lr=opt.lr
         self.save_hyperparameters(ignore=['opt', 'init_embeddings'])
         self.model=SessionGraph(opt, n_node)
         if init_embeddings is not None:
@@ -174,7 +175,7 @@ class SRGNN_model(pl.LightningModule):
             self.log(stage+"_hit", hit, prog_bar=True)
             self.log(stage+"_mrr", mrr, prog_bar=True)
             if stage=='val':
-                self.log("lr", self.hparams.lr, prog_bar=True)
+                self.log("lr", self.lr, prog_bar=True)
 
 
     def validation_step(self, batch, *args, **kwargs):
@@ -192,14 +193,21 @@ class SRGNN_model(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), 
-                                     lr=self.hparams.lr, 
+                                     lr=self.lr, 
                                      weight_decay=self.hparams.l2)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                                                     optimizer, 
                                                     patience=self.hparams.lr_dc_step, 
                                                     factor=self.hparams.lr_dc,
                                                     cooldown=1)
-        return {'optimizer': optimizer, 'lr_scheduler':scheduler}
+        return {'optimizer': optimizer, 
+                'lr_scheduler':{'scheduler': scheduler,
+                                'monitor': 'val_loss',
+                                "interval": "epoch",
+                                "frequency": 1,
+                                'name': 'scheduler_lr'
+                                }
+                }
     
     def get_raw_embeddings(self, batch):
         items = batch[2]

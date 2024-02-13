@@ -15,7 +15,7 @@ from math import ceil
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from srgnn_pl import SRGNN_model, SRGNN_Map_Dataset, SRGNN_sampler
 import torch
 import numpy as np
@@ -99,7 +99,9 @@ def main():
                    limit_train_batches=train_dataset.length//opt.batchSize,
                    limit_val_batches=val_dataset.length//opt.batchSize,
                    callbacks=[
-                              EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True)],
+                        EarlyStopping(monitor="val_loss", patience=opt.patience, mode="min", check_finite=True),
+                        LearningRateMonitor()
+                    ],
                    logger=wandb_logger
                   )
     trainer.fit(model=model, 
