@@ -20,7 +20,9 @@ from torch.nn import Module, Parameter
 import torch.nn.functional as F
 import torch.utils.data as data_utils
 import pytorch_lightning as pl
-
+from tqdm import tqdm
+from itertools import batched
+from math import ceil
 
 class GNN(Module):
     def __init__(self, hidden_size, step=1):
@@ -242,15 +244,26 @@ class SRGNN_model(pl.LightningModule):
 
 def data_masks(all_usr_pois, item_tail):
     print('data masking start')
-    us_lens = np.asarray([len(upois) for upois in all_usr_pois])
-    print('data masking 1')
+    us_lens = [len(upois) for upois in all_usr_pois]
     len_max = max(us_lens)
-    print('data masking 2')
-    us_pois = np.asarray([upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois, us_lens)])
+
+    no_batches=64
+    batch_size=ceil(len(us_lens)/no_batches)
+
+    all_usr_pois=batched(all_usr_pois, batch_size)
+    us_lens=batched(us_lens, batch_size)
+    us_msks=[]
+    us_pois=[]
+
+    for all_usr_pois_batch, us_lens_batch in tqdm(zip(all_usr_pois, us_lens), total=no_batches):
+        us_pois.append(np.asarray([upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois_batch,us_lens_batch)], dtype=np.uint16))
+        us_msks.append(np.asarray([[1] * le + [0] * (len_max - le) for le in us_lens_batch], dtype=np.bool_))
+
     del all_usr_pois
-    print('data masking 3')
-    us_msks = np.asarray([[1] * le + [0] * (len_max - le) for le in us_lens])
     del us_lens
+
+    us_pois=np.concatenate(us_pois)
+    us_msks=np.concatenate(us_msks)
     print('done masking')
     return us_pois, us_msks, len_max
 

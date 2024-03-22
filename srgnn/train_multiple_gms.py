@@ -19,8 +19,8 @@ parser.add_argument('--finetune', action='store_true', help='finetune')
 flags = parser.parse_args()
 
 
-def get_datasets_and_dataloaders(opt, cluster):
-    with open(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/train_{cluster}.txt', 'rb') as cluster_file:
+def get_datasets_and_dataloaders(opt, cluster, dir):
+    with open(dir+f'train_{cluster}.txt', 'rb') as cluster_file:
         train_data = pickle.load(cluster_file)
     if opt.validation:
         train_data, valid_data = split_validation(train_data, opt.valid_portion)
@@ -45,8 +45,8 @@ def main():
     torch.set_float32_matmul_precision('medium')
 
     ## run_id of the global model to use as reference/finetune
-    run_id='run-20240213_043223-0zuvfc9x'
-
+  #  run_id='run-20240302_233004-xh5dmcet'   
+    run_id='run-20240316_165704-5z65o3op'
     ## same params as global model
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
             config=yaml.safe_load(stream)
@@ -73,6 +73,8 @@ def main():
         n_node = 43098
     elif opt.dataset == 'yoochoose1_64' or opt.dataset == 'yoochoose1_4':
         n_node = 37484
+    elif opt.dataset == 'yoochoose_nonspecial':
+        n_node=37853+1
     elif opt.dataset == 'yoochoose_custom':
         n_node = 28583
     elif opt.dataset == 'yoochoose_custom_augmented':
@@ -96,8 +98,14 @@ def main():
 
     print('Start modelling clusters!')
     no_clusters=32#max([f.split('_') for f in os.listdir(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/')])
-    for cluster in range(30, no_clusters):
-        train_dataset, val_dataset, train_dataloader, val_dataloader = get_datasets_and_dataloaders(opt, cluster)
+    for cluster in range(no_clusters):
+        try:
+            train_dataset, val_dataset, train_dataloader, val_dataloader = \
+                get_datasets_and_dataloaders(opt, cluster,
+                                            f'../datasets/{opt.dataset}/gm_train_splits_{opt.hiddenSize}_{run_id.split("-")[-1]}/')
+        except FileNotFoundError:
+            print('File not found for cluster = ', cluster, ' Continue...')
+            continue
         print('Train sessions: ', train_dataset.length)
         print('Validation sessions: ', val_dataset.length)
         if flags.finetune:

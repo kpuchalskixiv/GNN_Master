@@ -19,6 +19,8 @@ from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, Mode
 from srgnn_pl import SRGNN_model, SRGNN_Map_Dataset, SRGNN_sampler
 import torch
 import numpy as np
+from tqdm import tqdm
+from sklearn.mixture import GaussianMixture
 
 
 parser = argparse.ArgumentParser()
@@ -37,9 +39,25 @@ parser.add_argument('--validation', action='store_true', help='validation')
 parser.add_argument('--valid_portion', type=float, default=0.1, help='split the portion of training set as validation set')
 parser.add_argument('--pretrained_embedings', action='store_true', help='initialize embeddings using word2vec')
 parser.add_argument('--unfreeze_epoch', type=int, default=1, help='epoch in which to unfreeze the embeddings layer')
+parser.add_argument('--gmm', action='store_true', help='train GM on validation dataset after training')
+
 opt = parser.parse_args()
 print(opt)
                 
+def train_gm(model, dataset, dataloader):
+    session_emb=[]
+
+    model.to('cuda')
+    for batch in tqdm(dataloader, total=dataset.length//opt.batchSize):
+        batch=[b.to('cuda') for b in batch]
+        session_emb.append(model.get_session_embeddings(batch).cpu().detach().numpy())
+    session_emb=np.concatenate(session_emb)
+
+    gm=GaussianMixture(n_components=32, n_init=4, init_params='k-means++')
+    _=gm.fit_predict(session_emb)
+    with open(f'./GMMs/gmm_val_{gm.n_components}_{gm.init_params}_{opt.hiddenSize}_{opt.dataset}.gmm', 'wb') as gmm_file:
+        pickle.dump(gm, gmm_file)
+
 
 def main():
 
@@ -56,6 +74,8 @@ def main():
         n_node = 43098
     elif opt.dataset == 'yoochoose1_64' or opt.dataset == 'yoochoose1_4':
         n_node = 37484
+    elif opt.dataset == 'yoochoose_nonspecial':
+        n_node=37853+1
     elif opt.dataset == 'yoochoose_custom':
         n_node = 28583
     elif opt.dataset == 'yoochoose_custom_augmented':
@@ -109,6 +129,11 @@ def main():
             val_dataloaders=val_dataloader
             )
     wandb.finish()
+
+    if opt.gmm:
+        del train_dataset
+        del train_dataloader
+        train_gm(model, val_dataset, val_dataloader)
 
 if __name__ == '__main__':
     main()

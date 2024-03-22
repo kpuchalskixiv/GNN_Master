@@ -10,6 +10,9 @@ import networkx as nx
 import numpy as np
 from item2vec import Item2Vec
 import pandas as pd
+from tqdm import tqdm
+from math import ceil
+
 
 class fake_parser():
     def __init__(self,
@@ -70,9 +73,10 @@ def data_masks(all_usr_pois, item_tail):
     print('data masking 1')
     len_max = max(us_lens)
     print('data masking 2')
-    us_pois = np.asarray([upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois, us_lens)])
+    us_pois=np.asarray([upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois,
+                                                                                us_lens)])
     print('data masking 3')
-    us_msks = np.asarray([[1] * le + [0] * (len_max - le) for le in us_lens])
+    us_msks=np.asarray([[1] * le + [0] * (len_max - le) for le in us_lens])
     del us_lens
     print('done masking')
     return us_pois, us_msks, len_max
