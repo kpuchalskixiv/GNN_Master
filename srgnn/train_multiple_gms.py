@@ -54,7 +54,7 @@ def main():
 
     ## run_id of the global model to use as reference/finetune
     #  run_id='run-20240302_233004-xh5dmcet'
-    run_id = "run-20240316_165704-5z65o3op"
+    run_id = "run-20240404_162708-ekuo66ei"
     ## same params as global model
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
         config = yaml.safe_load(stream)

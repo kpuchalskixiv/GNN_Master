@@ -118,7 +118,13 @@ def main():
     else:
         test_data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
 
-    if opt.dataset == "diginetica":
+    if opt.dataset == "amazon_cd":
+        n_node = 157661 + 1
+    elif opt.dataset == "amzaon_Baby_Products":
+        n_node = 89555 + 1
+    elif opt.dataset == "amzaon_Musical_Instruments":
+        n_node = 68465 + 1
+    elif opt.dataset == "diginetica":
         n_node = 43098
     elif opt.dataset == "yoochoose1_64" or opt.dataset == "yoochoose1_4":
         n_node = 37484
@@ -156,14 +162,14 @@ def main():
 
     train_dataloader = DataLoader(
         train_dataset,
-        num_workers=os.cpu_count(),
+        num_workers=os.cpu_count() - 2,
         sampler=SRGNN_sampler(
             train_dataset, opt.batchSize, shuffle=True, drop_last=False
         ),
     )
     val_dataloader = DataLoader(
         val_dataset,
-        num_workers=os.cpu_count(),
+        num_workers=os.cpu_count() - 2,
         sampler=SRGNN_sampler(
             val_dataset, opt.batchSize, shuffle=False, drop_last=False
         ),

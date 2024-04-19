@@ -6,13 +6,10 @@ Created on July, 2018
 @author: Tangrizzly
 """
 
-import datetime
 import math
 from itertools import batched
 from math import ceil
-from typing import Any, Optional
 
-import networkx as nx
 import numpy as np
 import pytorch_lightning as pl
 import torch
