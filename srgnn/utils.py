@@ -34,6 +34,14 @@ class fake_parser:
         valid_portion=0.1,
         pretrained_embedings=False,
         unfreeze_epoch=1,
+        gmm=False,
+        augment_matrix=False,
+        augment_clusters=False,
+        augment_old_run_id='',
+        augment_clip=0,
+        augment_normalize=False,
+        augment_raw=False,
+        weight_init='uniform'
     ):
         self.dataset = dataset
         self.batchSize = batchSize
@@ -50,6 +58,14 @@ class fake_parser:
         self.valid_portion = valid_portion
         self.pretrained_embedings = pretrained_embedings
         self.unfreeze_epoch = unfreeze_epoch
+        self.gmm = gmm
+        self.augment_matrix = augment_matrix
+        self.augment_clusters = augment_clusters
+        self.augment_old_run_id = augment_old_run_id
+        self.augment_clip = augment_clip
+        self.augment_normalize = augment_normalize
+        self.augment_raw = augment_raw
+        self.weight_init=weight_init
 
 
 def build_graph(train_data):
