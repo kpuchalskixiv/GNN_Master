@@ -80,7 +80,7 @@ parser.add_argument(
 parser = parser.parse_args()
 
 
-def __main__():
+def main():
     items_df, model, opt = load_data_model(parser.run_id)
     items_embeddings = (
         get_items_embedding(
@@ -111,3 +111,7 @@ def __main__():
         "wb",
     ) as f:
         pickle.dump(gm.means_, f)
+
+
+if __name__ == "__main__":
+    main()
