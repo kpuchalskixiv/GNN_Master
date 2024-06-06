@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import (
 from torch.utils.data import DataLoader
 
 import wandb
-from srgnn_pl import SRGNN_Map_Dataset, SRGNN_model, SRGNN_sampler
+from srgnn.srgnn_model import SRGNN_Map_Dataset, SRGNN_model, SRGNN_sampler
 from utils import calculate_embeddings, fake_parser, split_validation
 
 parser = argparse.ArgumentParser()

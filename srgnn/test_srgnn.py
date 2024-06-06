@@ -9,7 +9,7 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
-from srgnn_pl import SRGNN_Map_Dataset, SRGNN_model, SRGNN_sampler
+from srgnn.srgnn_model import SRGNN_Map_Dataset, SRGNN_model, SRGNN_sampler
 from utils import fake_parser
 
 torch.set_float32_matmul_precision("medium")

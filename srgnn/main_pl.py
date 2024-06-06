@@ -9,13 +9,11 @@ Created on July, 2018
 import argparse
 import os
 import pickle
-from math import ceil
 
-import yaml
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import torch.utils.data as data_utils
+import yaml
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -24,12 +22,16 @@ from pytorch_lightning.callbacks import (
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils import fake_parser
 
 import wandb
+from srgnn_datasets import (
+    Augment_Matrix_Dataset,
+    Clusters_Matrix_Dataset,
+    SRGNN_Map_Dataset,
+    SRGNN_sampler,
+)
 from srgnn_model import SRGNN_model
-from srgnn_datasets import SRGNN_Map_Dataset, SRGNN_sampler, Augment_Matrix_Dataset, GMMClusters_Matrix_Dataset
-from utils import calculate_embeddings, split_validation
+from utils import calculate_embeddings, fake_parser, split_validation
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -87,34 +89,74 @@ parser.add_argument(
     "--gmm", action="store_true", help="train GM on validation dataset after training"
 )
 parser.add_argument(
-    "--weight-init", type=str, default='uniform', help="Raw distances in adjacency matrix"
+    "--weight-init",
+    type=str,
+    default="normal",
+    help="Raw distances in adjacency matrix",
 )
 parser.add_argument(
-    "--augment-matrix", action="store_true", help="Use version of SRGNN with modified adjacency matrix"
+    "--augment-matrix",
+    action="store_true",
+    help="Use version of SRGNN with modified adjacency matrix",
 )
 parser.add_argument(
-    "--augment-clusters", action="store_true", help="Use clusters from GMM to modify adjacency matrix"
+    "--augment-clusters",
+    action="store_true",
+    help="Use clusters from GMM to modify adjacency matrix",
 )
 parser.add_argument(
-    "--augment-old-run-id", type=str, help="Full ID of an old run, to use embeddings from"
+    "--augment-old-run-id",
+    type=str,
+    help="Full ID of an old run, to use embeddings from",
 )
 parser.add_argument(
-    "--augment-clip", type=float, default=0, help="Max value at which to clip adjacency matrix"
+    "--augment-clip",
+    type=float,
+    default=0,
+    help="Max value at which to clip adjacency matrix",
 )
 parser.add_argument(
-    "--augment-normalize", action="store_true", help="Normalize adjacency matrix as in basic approach"
+    "--augment-normalize",
+    action="store_true",
+    help="Normalize adjacency matrix as in basic approach",
 )
 parser.add_argument(
     "--augment-raw", action="store_true", help="Raw distances in adjacency matrix"
 )
 parser.add_argument(
-    "--augment-p", type=float, default=1.0, help="Probability of matrix augmentation occuring"
+    "--augment-p",
+    type=float,
+    default=1.0,
+    help="Probability of matrix augmentation occuring",
 )
 parser.add_argument(
-    "--augment-mean", type=float, default=0.01, help="Mean of gausian noise to inject into A"
+    "--augment-mean",
+    type=float,
+    default=0.01,
+    help="Mean of gausian noise to inject into A",
 )
 parser.add_argument(
-    "--augment-std", type=float, default=0.0, help="StandardDeviation of gausian noise to inject into A. Value equal to 0 corresponds to no noise injected"
+    "--augment-std",
+    type=float,
+    default=0.0,
+    help="StandardDeviation of gausian noise to inject into A. Value equal to 0 corresponds to no noise injected",
+)
+parser.add_argument(
+    "--augment-categories",
+    action="store_true",
+    help="Use basic categories to modify adjacency matrix",
+)
+parser.add_argument(
+    "--augment-nogmm",
+    type=int,
+    default=16,
+    help="Number of gausoids used in GMM algorithm",
+)
+parser.add_argument(
+    "--lr-scheduler",
+    type=str,
+    default="plateu",
+    help="Learning Rate scheduler to use",
 )
 
 opt = parser.parse_args()
@@ -189,70 +231,125 @@ def main():
         del item2id
 
     if opt.augment_matrix:
-
         if opt.augment_clusters:
-            with open(f'../datasets/{opt.dataset}/item_labels_16_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt', 
-                      'rb') as f:
-                item_labels=pickle.load(f)
-            with open(f'../datasets/{opt.dataset}/cluster_centers_16_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt', 
-                      'rb') as f:
-                cluster_centers=pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
 
-            train_dataset = GMMClusters_Matrix_Dataset(
-                                    item_labels, 
-                                    cluster_centers,
-                                    clip=opt.augment_clip, 
-                                    normalize=opt.augment_normalize, 
-                                    raw=opt.augment_raw,
-                                    p=opt.augment_p,
-                                    noise_mean=opt.augment_mean,
-                                    noise_std=opt.augment_std,
-                                    data=train_data, shuffle=True)
+            train_dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                raw=opt.augment_raw,
+                p=opt.augment_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                data=train_data,
+                shuffle=True,
+            )
             del train_data
 
             val_dataset = SRGNN_Map_Dataset(
-                                 #   item_labels, 
-                                  #  cluster_centers, 
-                                   # clip=opt.augment_clip, 
-                                    #normalize=opt.augment_normalize, 
-                                    #raw=opt.augment_raw,
-                                    data=valid_data)
+                #   item_labels,
+                #  cluster_centers,
+                # clip=opt.augment_clip,
+                # normalize=opt.augment_normalize,
+                # raw=opt.augment_raw,
+                data=valid_data
+            )
             del valid_data
-        else:
-            with open(f"./wandb/{opt.augment_old_run_id}/files/config.yaml", "r") as stream:
-                    config=yaml.safe_load(stream)
+        elif opt.augment_categories:
+            with open(
+                f"../datasets/{opt.dataset}/category_labels_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/category_embeddings_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
 
-            keys=list(config.keys())
+            train_dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                raw=opt.augment_raw,
+                p=opt.augment_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                data=train_data,
+                shuffle=True,
+            )
+            del train_data
+            val_dataset = SRGNN_Map_Dataset(data=valid_data)
+            del valid_data
+
+        else:
+            with open(
+                f"./wandb/{opt.augment_old_run_id}/files/config.yaml", "r"
+            ) as stream:
+                config = yaml.safe_load(stream)
+
+            keys = list(config.keys())
             for k in keys:
                 if k not in fake_parser().__dict__.keys():
                     del config[k]
                 else:
-                    config[k]=config[k]['value']
+                    config[k] = config[k]["value"]
 
-            old_opt=fake_parser(**config)
-            assert old_opt.dataset==opt.dataset, f'Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!'
-            assert old_opt.hiddenSize==opt.hiddenSize, f'Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!'
+            old_opt = fake_parser(**config)
+            assert (
+                old_opt.dataset == opt.dataset
+            ), f"Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!"
+            assert (
+                old_opt.hiddenSize == opt.hiddenSize
+            ), f"Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!"
 
-            emb_model=SRGNN_model.load_from_checkpoint(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"+
-                                        os.listdir(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/")[0], opt=old_opt).model.embedding
-            train_dataset = Augment_Matrix_Dataset(emb_model, 
-                                                clip=opt.augment_clip, 
-                                                normalize=opt.augment_normalize, 
-                                                raw=opt.augment_raw,
-                                                p=opt.augment_p,
-                                                noise_mean=opt.augment_mean,
-                                                noise_std=opt.augment_std,
-                                                data=train_data, shuffle=True)
+            emb_model = SRGNN_model.load_from_checkpoint(
+                f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
+                + os.listdir(
+                    f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
+                )[0],
+                opt=old_opt,
+            ).model.embedding
+            train_dataset = Augment_Matrix_Dataset(
+                emb_model,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                raw=opt.augment_raw,
+                p=opt.augment_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                data=train_data,
+                shuffle=True,
+            )
             del train_data
             val_dataset = SRGNN_Map_Dataset(
-                                                #emb_model, 
-                                                #clip=opt.augment_clip, 
-                                                #normalize=opt.augment_normalize, 
-                                                #raw=opt.augment_raw,
-                                                data=valid_data)
+                # emb_model,
+                # clip=opt.augment_clip,
+                # normalize=opt.augment_normalize,
+                # raw=opt.augment_raw,
+                data=valid_data
+            )
             del valid_data
     else:
-        train_dataset = SRGNN_Map_Dataset(train_data, shuffle=True)
+        train_dataset = SRGNN_Map_Dataset(
+            train_data,
+            shuffle=True,
+            p=opt.augment_p,
+            noise_mean=opt.augment_mean,
+            noise_std=opt.augment_std,
+        )
         del train_data
         val_dataset = SRGNN_Map_Dataset(valid_data)
         del valid_data
@@ -276,6 +373,7 @@ def main():
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
     )
+
     trainer = pl.Trainer(
         max_epochs=60,
         limit_train_batches=train_dataset.length // opt.batchSize,
@@ -293,6 +391,9 @@ def main():
         model=model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
     )
     run_id = wandb.run.id
+    wandb.define_metric("val_loss", summary="min")
+    wandb.define_metric("val_hit", summary="max")
+    wandb.define_metric("val_mrr", summary="max")
     print("Finished training. Run id: ", run_id)
     wandb.finish()
     if opt.gmm:

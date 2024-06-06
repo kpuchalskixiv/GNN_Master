@@ -8,15 +8,12 @@ Created on July, 2018
 
 import math
 
-
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 from torch.nn import Module, Parameter
-from tqdm import tqdm
 
 
 class GNN(Module):
@@ -86,21 +83,23 @@ class SessionGraph(Module):
         self.reset_parameters(opt.weight_init)
 
     def reset_parameters(self, weight_init):
-        if weight_init=='uniform':
+        if weight_init == "uniform":
             stdv = 1.0 / math.sqrt(self.hidden_size)
             for weight in self.parameters():
                 nn.init.uniform_(weight, -stdv, stdv)
-        elif weight_init=='normal':
+        elif weight_init == "normal":
             for weight in self.parameters():
                 nn.init.normal_(weight, 0, 0.1)
-        elif weight_init=='xavier_normal':
+        elif weight_init == "xavier_normal":
             for weight in self.parameters():
-                if len(weight.shape)<2:
+                if len(weight.shape) < 2:
                     nn.init.normal_(weight, 0, 0.1)
                 else:
                     nn.init.xavier_normal_(weight)
         else:
-            raise ValueError(f'Weight initialization of type {weight_init} not implemented!')
+            raise ValueError(
+                f"Weight initialization of type {weight_init} not implemented!"
+            )
 
     def compute_scores(self, hidden, mask):
         ht = hidden[
@@ -221,12 +220,19 @@ class SRGNN_model(pl.LightningModule):
         optimizer = torch.optim.Adam(
             self.parameters(), lr=self.lr, weight_decay=self.hparams.l2
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            patience=self.hparams.lr_dc_step,
-            factor=self.hparams.lr_dc,
-            cooldown=1,
-        )
+        if self.hparams.lr_scheduler == "plateu":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                patience=self.hparams.lr_dc_step,
+                factor=self.hparams.lr_dc,
+                cooldown=1,
+            )
+        elif self.hparams.lr_scheduler == "step":
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer,
+                step_size=self.hparams.lr_dc_step,
+                gamma=self.hparams.lr_dc,
+            )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

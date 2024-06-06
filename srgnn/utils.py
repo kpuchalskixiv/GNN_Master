@@ -37,11 +37,16 @@ class fake_parser:
         gmm=False,
         augment_matrix=False,
         augment_clusters=False,
-        augment_old_run_id='',
+        augment_old_run_id="",
         augment_clip=0,
         augment_normalize=False,
         augment_raw=False,
-        weight_init='uniform'
+        weight_init="uniform",
+        augment_categories=False,
+        augment_nogmm=16,
+        augment_p=1,
+        augment_mean=0.01,
+        augment_std=0,
     ):
         self.dataset = dataset
         self.batchSize = batchSize
@@ -65,7 +70,12 @@ class fake_parser:
         self.augment_clip = augment_clip
         self.augment_normalize = augment_normalize
         self.augment_raw = augment_raw
-        self.weight_init=weight_init
+        self.weight_init = weight_init
+        self.augment_categories = augment_categories
+        self.augment_nogmm = augment_nogmm
+        self.augment_p = augment_p
+        self.augment_mean = augment_mean
+        self.augment_std = augment_std
 
 
 def build_graph(train_data):
