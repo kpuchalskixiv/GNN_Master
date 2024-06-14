@@ -380,7 +380,7 @@ def main():
         limit_val_batches=val_dataset.length // opt.batchSize,
         callbacks=[
             EarlyStopping(
-                monitor="val_loss", patience=opt.patience, mode="min", check_finite=True
+                monitor="val_hit", patience=opt.patience, mode="max", check_finite=True
             ),
             LearningRateMonitor(),
             ModelCheckpoint(monitor="val_loss", mode="min"),
