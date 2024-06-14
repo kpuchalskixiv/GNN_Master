@@ -233,6 +233,14 @@ class SRGNN_model(pl.LightningModule):
                 step_size=self.hparams.lr_dc_step,
                 gamma=self.hparams.lr_dc,
             )
+        elif self.hparams.lr_scheduler == "multistep":
+            scheduler = torch.optim.lr_scheduler.MultiStepLR(
+                optimizer,
+                milestones=self.hparams.lr_milestones,
+                gamma=self.hparams.lr_dc,
+            )
+        else:
+            raise ValueError('Unknown (or not implemented) learning rate sheduler')
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

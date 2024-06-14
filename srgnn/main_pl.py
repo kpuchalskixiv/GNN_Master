@@ -22,6 +22,7 @@ from pytorch_lightning.callbacks import (
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing import List
 
 import wandb
 from srgnn_datasets import (
@@ -47,12 +48,19 @@ parser.add_argument(
 parser.add_argument(
     "--lr", type=float, default=0.001, help="learning rate"
 )  # [0.001, 0.0005, 0.0001]
-parser.add_argument("--lr_dc", type=float, default=0.1, help="learning rate decay rate")
+parser.add_argument("--lr-dc", type=float, default=0.1, help="learning rate decay rate")
 parser.add_argument(
     "--lr-dc-step",
     type=int,
     default=3,
     help="the number of steps after which the learning rate decay",
+)
+parser.add_argument(
+    "--lr-milestones",
+    type=int,
+    default=[2,5, 8],
+    help="Shedule of steps after which the learning rate decay",
+    nargs='+'
 )
 parser.add_argument(
     "--l2", type=float, default=1e-5, help="l2 penalty"
