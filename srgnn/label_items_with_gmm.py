@@ -9,12 +9,14 @@ import yaml
 from sklearn.mixture import GaussianMixture
 
 from srgnn_model import SRGNN_model
+from tagnn.tagnn_model import TAGNN_model
+
 from utils import fake_parser
 
 torch.set_float32_matmul_precision("medium")
 
 
-def load_data_model(run_id):
+def load_data_model(run_id, tagnn=False):
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
         config = yaml.safe_load(stream)
 
@@ -28,11 +30,18 @@ def load_data_model(run_id):
     opt = fake_parser(**config)
     print(opt.__dict__)
 
-    model = SRGNN_model.load_from_checkpoint(
-        f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
-        + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
-        opt=opt,
-    )
+    if tagnn:
+        model = TAGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+    else:
+        model = SRGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
 
     if "yoochoose" in opt.dataset:
         items_df = pd.read_csv(f"../datasets/{opt.dataset}/items.csv").drop(
@@ -55,6 +64,11 @@ parser = argparse.ArgumentParser()
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--run-id",
+    help="Run id of model on which to base lableling",
+)
+parser.add_argument(
+    "--tagnn",
+    action='store_true',
     help="Run id of model on which to base lableling",
 )
 
@@ -81,7 +95,7 @@ parser = parser.parse_args()
 
 
 def main():
-    items_df, model, opt = load_data_model(parser.run_id)
+    items_df, model, opt = load_data_model(parser.run_id, parser.tagnn)
     items_embeddings = (
         get_items_embedding(
             model, torch.arange(items_df.item_number.nunique() + 1, device=model.device)
@@ -102,12 +116,12 @@ def main():
     item_labels = gm.fit_predict(items_embeddings)
     print(np.unique(item_labels, return_counts=True))
     with open(
-        f"../datasets/{opt.dataset}/item_labels_{gm.n_components}_{opt.hiddenSize}_{parser.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/item_labels_{gm.n_components}_{parser.init_params}_{opt.hiddenSize}_{parser.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(item_labels, f)
     with open(
-        f"../datasets/{opt.dataset}/cluster_centers_{gm.n_components}_{opt.hiddenSize}_{parser.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/cluster_centers_{gm.n_components}_{parser.init_params}_{opt.hiddenSize}_{parser.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(gm.means_, f)

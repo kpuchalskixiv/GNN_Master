@@ -9,12 +9,13 @@ import yaml
 from tqdm import tqdm
 
 from srgnn_model import SRGNN_model
+from tagnn_model import TAGNN_model
 from utils import fake_parser
 
 torch.set_float32_matmul_precision("medium")
 
 
-def load_model(run_id):
+def load_model(run_id, tagnn=False):
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
         config = yaml.safe_load(stream)
 
@@ -30,11 +31,18 @@ def load_model(run_id):
 
     opt = fake_parser(**config)
 
-    model = SRGNN_model.load_from_checkpoint(
-        f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
-        + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
-        opt=opt,
-    )
+    if tagnn:
+        model = TAGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+    else:
+        model = SRGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
     return model, opt
 
 
@@ -60,11 +68,16 @@ parser.add_argument(
     "--run-id",
     help="Run id of model on which to base lableling",
 )
+parser.add_argument(
+    "--tagnn",
+    action='store_true',
+    help="Use TAGNN model",
+)
 parser = parser.parse_args()
 
 
 def main():
-    model, opt = load_model(parser.run_id)
+    model, opt = load_model(parser.run_id, parser.tagnn)
     items_df = load_items(opt)
 
     model.to("cuda")

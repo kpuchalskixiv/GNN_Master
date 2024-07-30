@@ -161,6 +161,12 @@ parser.add_argument(
     help="Number of gausoids used in GMM algorithm",
 )
 parser.add_argument(
+    "--augment-gmm-init",
+    type=str,
+    default='k-means++',
+    help="initialization of gausoids used in GMM algorithm",
+)
+parser.add_argument(
     "--lr-scheduler",
     type=str,
     default="plateu",
