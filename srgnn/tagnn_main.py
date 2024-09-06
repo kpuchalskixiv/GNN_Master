@@ -383,7 +383,7 @@ def main():
         ),
     )
 
-    model = TAGNN_model(opt, n_node, init_embeddings=embeddings, **(opt.__dict__))
+    model = TAGNN_model(opt, n_node, init_embeddings=embeddings, name='TAGNN', **(opt.__dict__))
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
     )

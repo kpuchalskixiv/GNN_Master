@@ -143,11 +143,10 @@ class SessionGraph(Module):
 
 
 class SRGNN_model(pl.LightningModule):
-    def __init__(self, opt=None, n_node=0, init_embeddings=None, **kwargs):
+    def __init__(self, opt=None, n_node=0, init_embeddings=None, name='SRGNN', **kwargs):
         super().__init__()
         self.lr = opt.lr
         self.save_hyperparameters(ignore=["opt", "init_embeddings"])
-        self.save_hyperparameters({'name': 'SRGNN'})
         self.model = SessionGraph(opt, n_node)
         if init_embeddings is not None:
             self.model.embedding = nn.Embedding.from_pretrained(

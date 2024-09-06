@@ -9,7 +9,7 @@ import yaml
 from sklearn.mixture import GaussianMixture
 
 from srgnn_model import SRGNN_model
-from tagnn.tagnn_model import TAGNN_model
+from tagnn_model import TAGNN_model
 
 from utils import fake_parser
 

@@ -11,6 +11,7 @@ import os
 import pickle
 
 import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 import torch
 import yaml
@@ -77,18 +78,18 @@ parser.add_argument(
 )
 parser.add_argument("--validation", action="store_true", help="validation")
 parser.add_argument(
-    "--valid_portion",
+    "--valid-portion",
     type=float,
     default=0.1,
     help="split the portion of training set as validation set",
 )
 parser.add_argument(
-    "--pretrained_embedings",
+    "--pretrained-embeddings",
     action="store_true",
     help="initialize embeddings using word2vec",
 )
 parser.add_argument(
-    "--unfreeze_epoch",
+    "--unfreeze-epoch",
     type=int,
     default=1,
     help="epoch in which to unfreeze the embeddings layer",
@@ -229,8 +230,8 @@ def main():
         n_node = 310
 
     embeddings = None
-    if opt.pretrained_embedings:
-        clicks_df = pickle.load(open(f"../datasets/{opt.dataset}/yoo_df.txt", "rb"))
+    if opt.pretrained_embeddings:
+        clicks_df = pd.read_csv(f"../datasets/{opt.dataset}/w2v_df.csv")
         items_in_train = pickle.load(
             open(f"../datasets/{opt.dataset}/items_in_train.txt", "rb")
         )
@@ -247,12 +248,12 @@ def main():
     if opt.augment_matrix:
         if opt.augment_clusters:
             with open(
-                f"../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 item_labels = pickle.load(f)
             with open(
-                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 cluster_centers = pickle.load(f)
@@ -383,7 +384,7 @@ def main():
         ),
     )
 
-    model = SRGNN_model(opt, n_node, init_embeddings=embeddings, **(opt.__dict__))
+    model = SRGNN_model(opt, n_node, init_embeddings=embeddings, name='SRGNN', **(opt.__dict__))
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
     )
