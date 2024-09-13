@@ -184,12 +184,16 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
                 u = np.where(node == u_input[i])[0][0]
                 v = np.where(node == u_input[i + 1])[0][0]
                 u_A[u][v] = 1
+
+
             u_sum_in = np.sum(u_A, 0)
             u_sum_in[np.where(u_sum_in == 0)] = 1
             u_A_in = np.divide(u_A, u_sum_in)
+
             u_sum_out = np.sum(u_A, 1)
             u_sum_out[np.where(u_sum_out == 0)] = 1
             u_A_out = np.divide(u_A.transpose(), u_sum_out)
+            
             u_A = np.concatenate([u_A_in, u_A_out]).transpose()
 
             if self.noise_std:
@@ -392,6 +396,7 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
         p=1.0,
         noise_mean=0.01,
         noise_std=0.0,
+        prenormalize_distances=False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -400,6 +405,7 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
 
         self.clip = clip
         self.normalize = normalize
+        self.prenormalize_distances=prenormalize_distances
         self.raw = raw
 
         self.p = p
@@ -407,6 +413,17 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
         self.noise_std = noise_std
 
         assert (not normalize) or (not clip), "Usage of both not implemented!"
+
+        no_clusters=len(cluster_centers)
+        self.cluster_distances=np.zeros((no_clusters, no_clusters))
+        
+        for i in range(no_clusters):
+            self.cluster_distances[i]=np.linalg.norm(cluster_centers-cluster_centers[i], axis=1)
+        self.cluster_distances=1/self.cluster_distances
+        self.cluster_distances[self.cluster_distances==np.inf]=0
+        s=self.cluster_distances.sum(axis=1)
+        self.cluster_distances=self.cluster_distances/s.reshape(no_clusters,1)
+        self.cluster_distances=(self.cluster_distances/self.cluster_distances.max())
 
     def __getitem__(self, idxs):
         # print(idxs)
@@ -439,27 +456,32 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
                     if u_label == v_label:
                         loops.append((u, v))
                         continue
-                    u_A[u][v] = 1 / np.linalg.norm(
-                        self.cluster_centers[u_label] - self.cluster_centers[v_label]
-                    )
+                    if self.prenormalize_distances:
+                        u_A[u][v]=self.cluster_distances[u,v]
+                    else:
+                        u_A[u][v] = 1 / np.linalg.norm(
+                            self.cluster_centers[u_label] - self.cluster_centers[v_label]
+                        )
                 else:
                     u_A[u][v] = 1
 
-            if self.raw:
-                Amax = 2 * np.max(u_A)
-                for u, v in loops:
-                    u_A[u, v] = max(1, Amax)
-
-                u_A_in = u_A.copy()
-                u_A_out = u_A.transpose()
-            elif self.normalize:
+            if self.raw or self.prenormalize_distances:
                 maxes = 2 * np.max(u_A, 0)
                 for u, v in loops:
                     u_A[u, v] = max(1, maxes[u])
 
-                u_sum_in = np.sum(u_A, 0)
+                u_A_in = u_A.copy()
+                u_A_out = u_A.transpose()
+
+            elif self.normalize:
+                maxes = 2 * np.max(u_A, 0)
+                u_A_in=u_A.copy()
+                for u, v in loops:
+                    u_A_in[u, v] = max(1, maxes[u])
+
+                u_sum_in = np.sum(u_A_in, 0)
                 u_sum_in[np.where(u_sum_in == 0)] = 1
-                u_A_in = np.divide(u_A, u_sum_in)
+                u_A_in = np.divide(u_A_in, u_sum_in)
 
                 maxes = 2 * np.max(u_A, 1)
                 for u, v in loops:
@@ -472,7 +494,7 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
                     for u, v in loops:
                         u_A[u, v] = self.clip
                     u_A = np.clip(u_A, a_min=0, a_max=self.clip)
-                u_A_sum = np.sum(A)
+                u_A_sum = np.sum(u_A)
                 if u_A_sum:
                     u_A_in = u_A / u_A_sum
                     u_A_out = u_A.transpose() / u_A_sum
