@@ -44,9 +44,12 @@ class fake_parser:
         weight_init="uniform",
         augment_categories=False,
         augment_nogmm=16,
+        augment_gmm_init='k-means++',
         augment_p=1,
+        augment_noise_p=1,
         augment_mean=0.01,
         augment_std=0,
+        augment_prenormalize_distances=False,
     ):
         self.dataset = dataset
         self.batchSize = batchSize
@@ -76,6 +79,9 @@ class fake_parser:
         self.augment_p = augment_p
         self.augment_mean = augment_mean
         self.augment_std = augment_std
+        self.augment_gmm_init=augment_gmm_init
+        self.augment_prenormalize_distances=augment_prenormalize_distances
+        self.augment_noise_p=augment_noise_p
 
 
 def build_graph(train_data):
@@ -153,3 +159,102 @@ def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node, epoch
     embeddings[embeddings_pdf.index] = embeddings_pdf.values
 
     return embeddings
+
+
+
+import yaml
+from srgnn_model import SRGNN_model
+import pickle
+import os
+from srgnn_datasets import SRGNN_Map_Dataset, Clusters_Matrix_Dataset, Augment_Matrix_Dataset
+from tagnn_model import TAGNN_model
+
+def load_model(run_id):
+    with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+        config=yaml.safe_load(stream)
+
+    keys=list(config.keys())
+    for k in keys:
+        if k=='old_run_id':
+            config['augment_old_run_id']=config[k]['value']
+            del config[k]
+        elif k not in fake_parser().__dict__.keys():
+            del config[k]
+        else:
+            config[k]=config[k]['value']
+
+    opt=fake_parser(**config)
+
+    model=SRGNN_model.load_from_checkpoint(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"+
+                                       os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0], 
+                                       opt=opt)
+    return model,opt
+
+def get_dataset(opt):
+    test_data = pickle.load(open('../datasets/' + opt.dataset + '/test.txt', 'rb'))
+
+    if opt.augment_matrix:
+        if opt.augment_clusters:
+            with open(f'../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt', 
+                    'rb') as f:
+                item_labels=pickle.load(f)
+            with open(f'../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt', 
+                    'rb') as f:
+                cluster_centers=pickle.load(f)
+            dataset=Clusters_Matrix_Dataset(
+                                item_labels, 
+                                cluster_centers,
+                                clip=opt.augment_clip, 
+                                normalize=opt.augment_normalize, 
+                                raw=opt.augment_raw,
+                                data=test_data, shuffle=False)
+        elif opt.augment_categories:
+            with open(
+                f"../datasets/{opt.dataset}/category_labels_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/category_embeddings_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
+
+            dataset=Clusters_Matrix_Dataset(
+                                item_labels, 
+                                cluster_centers,
+                                clip=opt.augment_clip, 
+                                normalize=opt.augment_normalize, 
+                                raw=opt.augment_raw,
+                                data=test_data, shuffle=False)
+        else:
+            dataset=Augment_Matrix_Dataset(SRGNN_model.load_from_checkpoint(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"+
+                                            os.listdir(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/")[0], opt=opt).model.embedding,
+                                            normalize=opt.augment_normalize,
+                                            clip=opt.augment_clip,
+                                            raw=opt.augment_raw,
+                                            data=test_data, shuffle=False)
+    else:
+        dataset=SRGNN_Map_Dataset( data=test_data, shuffle=False)
+    return dataset
+
+def load_model_tagnn(run_id):
+    with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+        config=yaml.safe_load(stream)
+
+    keys=list(config.keys())
+    for k in keys:
+        if k=='old_run_id':
+            config['augment_old_run_id']=config[k]['value']
+            del config[k]
+        elif k not in fake_parser().__dict__.keys():
+            del config[k]
+        else:
+            config[k]=config[k]['value']
+
+    opt=fake_parser(**config)
+
+    model=TAGNN_model.load_from_checkpoint(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"+
+                                       os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0], 
+                                       opt=opt)
+    return model,opt
