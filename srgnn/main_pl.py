@@ -9,6 +9,7 @@ Created on July, 2018
 import argparse
 import os
 import pickle
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -23,7 +24,6 @@ from pytorch_lightning.callbacks import (
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import List
 
 import wandb
 from srgnn_datasets import (
@@ -59,9 +59,9 @@ parser.add_argument(
 parser.add_argument(
     "--lr-milestones",
     type=int,
-    default=[2,5, 8],
+    default=[2, 5, 8],
     help="Shedule of steps after which the learning rate decay",
-    nargs='+'
+    nargs="+",
 )
 parser.add_argument(
     "--l2", type=float, default=1e-5, help="l2 penalty"
@@ -91,11 +91,11 @@ parser.add_argument(
 parser.add_argument(
     "--unfreeze-epoch",
     type=int,
-    default=1,
+    default=0,
     help="epoch in which to unfreeze the embeddings layer",
 )
 parser.add_argument(
-    "--gmm", action="store_true", help="train GM on validation dataset after training"
+    "--gmm", default=[], nargs='*', type=int, help="train GM on validation dataset after training"
 )
 parser.add_argument(
     "--weight-init",
@@ -139,6 +139,12 @@ parser.add_argument(
     help="Probability of matrix augmentation occuring",
 )
 parser.add_argument(
+    "--augment-noise-p",
+    type=float,
+    default=1.0,
+    help="Probability of matrix augmentation occuring",
+)
+parser.add_argument(
     "--augment-mean",
     type=float,
     default=0.01,
@@ -164,7 +170,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-gmm-init",
     type=str,
-    default='k-means++',
+    default="k-means++",
     help="initialization of gausoids used in GMM algorithm",
 )
 parser.add_argument(
@@ -173,12 +179,16 @@ parser.add_argument(
     default="plateu",
     help="Learning Rate scheduler to use",
 )
-
+parser.add_argument(
+    "--augment-prenormalize-distances",
+    action="store_true",
+    help="Use basic categories to modify adjacency matrix",
+)
 opt = parser.parse_args()
 print(opt)
 
 
-def train_gm(model, dataset, dataloader):
+def train_gm(model, dataset, dataloader, run_id, components=[32]):
     session_emb = []
 
     model.to("cuda")
@@ -187,13 +197,14 @@ def train_gm(model, dataset, dataloader):
         session_emb.append(model.get_session_embeddings(batch).cpu().detach().numpy())
     session_emb = np.concatenate(session_emb)
 
-    gm = GaussianMixture(n_components=32, n_init=2, init_params="k-means++")
-    _ = gm.fit_predict(session_emb)
-    with open(
-        f"./GMMs/gmm_val_{gm.n_components}_{gm.init_params}_{opt.hiddenSize}_{opt.dataset}_{opt.augment_matrix}.gmm",
-        "wb",
-    ) as gmm_file:
-        pickle.dump(gm, gmm_file)
+    for n_comp in components:
+        gm = GaussianMixture(n_components=n_comp, n_init=2, init_params="k-means++")
+        _ = gm.fit_predict(session_emb)
+        with open(
+            f"./GMMs/gmm_val_{gm.n_components}_{gm.init_params}_{opt.hiddenSize}_{opt.dataset}_{opt.augment_matrix}_{run_id}.gmm",
+            "wb",
+        ) as gmm_file:
+            pickle.dump(gm, gmm_file)
 
 
 def main():
@@ -265,8 +276,10 @@ def main():
                 normalize=opt.augment_normalize,
                 raw=opt.augment_raw,
                 p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
                 noise_mean=opt.augment_mean,
                 noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
                 data=train_data,
                 shuffle=True,
             )
@@ -300,8 +313,10 @@ def main():
                 normalize=opt.augment_normalize,
                 raw=opt.augment_raw,
                 p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
                 noise_mean=opt.augment_mean,
                 noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
                 data=train_data,
                 shuffle=True,
             )
@@ -384,7 +399,9 @@ def main():
         ),
     )
 
-    model = SRGNN_model(opt, n_node, init_embeddings=embeddings, name='SRGNN', **(opt.__dict__))
+    model = SRGNN_model(
+        opt, n_node, init_embeddings=embeddings, name="SRGNN", **(opt.__dict__)
+    )
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
     )
@@ -419,7 +436,7 @@ def main():
             + os.listdir(f"./GNN_master/{run_id}/checkpoints/")[0],
             opt=opt,
         )
-        train_gm(model, val_dataset, val_dataloader)
+        train_gm(model, val_dataset, val_dataloader, run_id, opt.gmm)
 
 
 if __name__ == "__main__":
