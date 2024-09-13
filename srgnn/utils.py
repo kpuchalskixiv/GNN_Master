@@ -204,9 +204,14 @@ def get_dataset(opt):
             dataset=Clusters_Matrix_Dataset(
                                 item_labels, 
                                 cluster_centers,
-                                clip=opt.augment_clip, 
-                                normalize=opt.augment_normalize, 
+                                clip=opt.augment_clip,
+                                normalize=opt.augment_normalize,
                                 raw=opt.augment_raw,
+                                p=opt.augment_p,
+                                noise_p=opt.augment_noise_p,
+                                noise_mean=opt.augment_mean,
+                                noise_std=opt.augment_std,
+                                prenormalize_distances=opt.augment_prenormalize_distances,
                                 data=test_data, shuffle=False)
         elif opt.augment_categories:
             with open(
@@ -223,16 +228,26 @@ def get_dataset(opt):
             dataset=Clusters_Matrix_Dataset(
                                 item_labels, 
                                 cluster_centers,
-                                clip=opt.augment_clip, 
-                                normalize=opt.augment_normalize, 
+                                clip=opt.augment_clip,
+                                normalize=opt.augment_normalize,
                                 raw=opt.augment_raw,
+                                p=opt.augment_p,
+                                noise_p=opt.augment_noise_p,
+                                noise_mean=opt.augment_mean,
+                                noise_std=opt.augment_std,
+                                prenormalize_distances=opt.augment_prenormalize_distances,
                                 data=test_data, shuffle=False)
         else:
             dataset=Augment_Matrix_Dataset(SRGNN_model.load_from_checkpoint(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"+
                                             os.listdir(f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/")[0], opt=opt).model.embedding,
-                                            normalize=opt.augment_normalize,
                                             clip=opt.augment_clip,
+                                            normalize=opt.augment_normalize,
                                             raw=opt.augment_raw,
+                                            p=opt.augment_p,
+                                            noise_p=opt.augment_noise_p,
+                                            noise_mean=opt.augment_mean,
+                                            noise_std=opt.augment_std,
+                                            prenormalize_distances=opt.augment_prenormalize_distances,
                                             data=test_data, shuffle=False)
     else:
         dataset=SRGNN_Map_Dataset( data=test_data, shuffle=False)
