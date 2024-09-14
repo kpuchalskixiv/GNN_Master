@@ -185,7 +185,6 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
                 v = np.where(node == u_input[i + 1])[0][0]
                 u_A[u][v] = 1
 
-
             u_sum_in = np.sum(u_A, 0)
             u_sum_in[np.where(u_sum_in == 0)] = 1
             u_A_in = np.divide(u_A, u_sum_in)
@@ -193,7 +192,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
             u_sum_out = np.sum(u_A, 1)
             u_sum_out[np.where(u_sum_out == 0)] = 1
             u_A_out = np.divide(u_A.transpose(), u_sum_out)
-            
+
             u_A = np.concatenate([u_A_in, u_A_out]).transpose()
 
             if self.noise_std:
@@ -254,7 +253,86 @@ class SRGNN_sampler(data_utils.Sampler):
     # raise IndexError('Done iterating')
 
 
-class Augment_Matrix_Dataset(SRGNN_Map_Dataset):
+class AugmentDataset(SRGNN_Map_Dataset):
+    def __init__(
+        self,
+        item_labels=None,
+        cluster_centers=None,
+        clip=0,
+        normalize=False,
+        raw=False,
+        p=1.0,
+        noise_p=1.0,
+        noise_mean=0.01,
+        noise_std=0.0,
+        prenormalize_distances=False,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.item_labels = item_labels
+        self.cluster_centers = cluster_centers
+
+        self.clip = clip
+        self.normalize = normalize
+        self.prenormalize_distances = prenormalize_distances
+        self.raw = raw
+
+        self.p = p
+        self.noise_p = noise_p
+        self.noise_mean = noise_mean
+        self.noise_std = noise_std
+
+        assert (not normalize) or (not clip), "Usage of both not implemented!"
+
+    def postprocess_matrix(self, u_A, loops):
+        if self.normalize:
+            maxes = 2 * np.max(u_A, 0)
+            u_A_in = u_A.copy()
+            for u, v in loops:
+                u_A_in[u, v] = max(1, maxes[u])
+
+            u_sum_in = np.sum(u_A_in, 0)
+            u_sum_in[np.where(u_sum_in == 0)] = 1
+            u_A_in = np.divide(u_A_in, u_sum_in)
+
+            maxes = 2 * np.max(u_A, 1)
+            for u, v in loops:
+                u_A[u, v] = max(1, maxes[u])
+            u_sum_out = np.sum(u_A, 1)
+            u_sum_out[np.where(u_sum_out == 0)] = 1
+            u_A_out = np.divide(u_A.transpose(), u_sum_out)
+        elif self.clip:
+            for u, v in loops:
+                u_A[u, v] = self.clip
+            u_A = np.clip(u_A, a_min=0, a_max=self.clip)
+            u_A_sum = np.sum(u_A)
+            if u_A_sum:
+                u_A_in = u_A / u_A_sum
+                u_A_out = u_A.transpose() / u_A_sum
+            else:
+                u_A_in = u_A.copy()
+                u_A_out = u_A.transpose()
+        else:
+            maxes = 2 * np.max(u_A, 0)
+            for u, v in loops:
+                u_A[u, v] = max(1, maxes[u])
+
+            u_A_in = u_A.copy()
+            u_A_out = u_A.transpose()
+
+        u_A = np.concatenate([u_A_in, u_A_out]).transpose()
+
+        if self.noise_std:
+            if random() < self.noise_p:
+                u_A += np.random.normal(
+                    loc=self.noise_mean, scale=self.noise_std, size=u_A.shape
+                )
+        return u_A
+
+
+class Augment_Matrix_Dataset(
+    AugmentDataset
+):  # TODO change name to sth like item2item augment dataset
     def __init__(
         self,
         emb_model=None,
@@ -312,7 +390,7 @@ class Augment_Matrix_Dataset(SRGNN_Map_Dataset):
                 v = np.where(node == u_input[i + 1])[0][0]
                 if random() < self.p:
                     if u == v:
-                        loops.append(u)
+                        loops.append((u, v))  # for compatibility
                         continue
                     u_A[u][v] = 1 / np.linalg.norm(
                         item_embeddigs[u] - item_embeddigs[v]
@@ -320,60 +398,7 @@ class Augment_Matrix_Dataset(SRGNN_Map_Dataset):
                 else:
                     u_A[u][v] = 1
 
-            if self.raw:
-                maxes = np.max(u_A, 0)
-                u_A_in = u_A.copy()
-                for u in loops:
-                    if maxes[u] == 0:
-                        u_A_in[u, u] = max(1, max(maxes))
-                    else:
-                        u_A_in[u, u] = maxes[u]
-                maxes = np.max(u_A, 1)
-                for u in loops:
-                    if maxes[u] == 0:
-                        u_A[u, u] = max(1, max(maxes))
-                    else:
-                        u_A[u, u] = maxes[u]
-                u_A_out = u_A.transpose()
-
-            elif self.normalize:
-                maxes = np.max(u_A, 0)
-                for u in loops:
-                    u_A[u, u] = max(1, maxes[u])
-
-                u_sum_in = np.sum(u_A, 0)
-                u_sum_in[np.where(u_sum_in == 0)] = 1
-                u_A_in = np.divide(u_A, u_sum_in)
-
-                maxes = np.max(u_A, 1)
-                for u in loops:
-                    u_A[u, u] = max(1, maxes[u])
-                u_sum_out = np.sum(u_A, 1)
-                u_sum_out[np.where(u_sum_out == 0)] = 1
-                u_A_out = np.divide(u_A.transpose(), u_sum_out)
-            else:
-                if self.clip:
-                    for u in loops:
-                        u_A[u, u] = self.clip
-                    u_A = np.clip(u_A, a_min=0, a_max=self.clip)
-                u_A_sum = np.sum(A)
-                if u_A_sum:
-                    u_A_in = u_A / u_A_sum
-                    u_A_out = u_A.transpose() / u_A_sum
-                else:
-                    u_A_in = u_A.copy()
-                    u_A_out = u_A.transpose()
-                if not self.clip:
-                    for u in loops:
-                        u_A_in[u, u] = 1
-                        u_A_out[u, u] = 1
-            u_A = np.concatenate([u_A_in, u_A_out]).transpose()
-            if self.noise_std:
-                if random() < self.p:
-                    u_A += np.random.normal(
-                        loc=self.noise_mean, scale=self.noise_std, size=u_A.shape
-                    )
-
+            u_A = self.postprocess_matrix(u_A, loops)
             A.append(u_A)
             alias_inputs.append([np.where(node == i)[0][0] for i in u_input])
         return (
@@ -385,7 +410,7 @@ class Augment_Matrix_Dataset(SRGNN_Map_Dataset):
         )
 
 
-class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
+class Clusters_Matrix_Dataset(AugmentDataset):
     def __init__(
         self,
         item_labels=None,
@@ -394,6 +419,7 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
         normalize=False,
         raw=False,
         p=1.0,
+        noise_p=1.0,
         noise_mean=0.01,
         noise_std=0.0,
         prenormalize_distances=False,
@@ -405,25 +431,27 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
 
         self.clip = clip
         self.normalize = normalize
-        self.prenormalize_distances=prenormalize_distances
-        self.raw = raw
+        self.prenormalize_distances = prenormalize_distances
 
         self.p = p
+        self.noise_p = noise_p
         self.noise_mean = noise_mean
         self.noise_std = noise_std
 
         assert (not normalize) or (not clip), "Usage of both not implemented!"
 
-        no_clusters=len(cluster_centers)
-        self.cluster_distances=np.zeros((no_clusters, no_clusters))
-        
+        no_clusters = len(cluster_centers)
+        self.cluster_distances = np.zeros((no_clusters, no_clusters))
+
         for i in range(no_clusters):
-            self.cluster_distances[i]=np.linalg.norm(cluster_centers-cluster_centers[i], axis=1)
-        self.cluster_distances=1/self.cluster_distances
-        self.cluster_distances[self.cluster_distances==np.inf]=0
-        s=self.cluster_distances.sum(axis=1)
-        self.cluster_distances=self.cluster_distances/s.reshape(no_clusters,1)
-        self.cluster_distances=(self.cluster_distances/self.cluster_distances.max())
+            self.cluster_distances[i] = np.linalg.norm(
+                cluster_centers - cluster_centers[i], axis=1
+            )
+        self.cluster_distances = 1 / self.cluster_distances
+        self.cluster_distances[self.cluster_distances == np.inf] = 0
+        s = self.cluster_distances.sum(axis=1)
+        self.cluster_distances = self.cluster_distances / s.reshape(no_clusters, 1)
+        self.cluster_distances = self.cluster_distances / self.cluster_distances.max()
 
     def __getitem__(self, idxs):
         # print(idxs)
@@ -450,70 +478,7 @@ class Clusters_Matrix_Dataset(SRGNN_Map_Dataset):
                 u = np.where(node == u_input[i])[0][0]
                 v = np.where(node == u_input[i + 1])[0][0]
 
-                if random() < self.p:
-                    u_label = self.item_labels[u_input[i]]
-                    v_label = self.item_labels[u_input[i + 1]]
-                    if u_label == v_label:
-                        loops.append((u, v))
-                        continue
-                    if self.prenormalize_distances:
-                        u_A[u][v]=self.cluster_distances[u,v]
-                    else:
-                        u_A[u][v] = 1 / np.linalg.norm(
-                            self.cluster_centers[u_label] - self.cluster_centers[v_label]
-                        )
-                else:
-                    u_A[u][v] = 1
-
-            if self.raw or self.prenormalize_distances:
-                maxes = 2 * np.max(u_A, 0)
-                for u, v in loops:
-                    u_A[u, v] = max(1, maxes[u])
-
-                u_A_in = u_A.copy()
-                u_A_out = u_A.transpose()
-
-            elif self.normalize:
-                maxes = 2 * np.max(u_A, 0)
-                u_A_in=u_A.copy()
-                for u, v in loops:
-                    u_A_in[u, v] = max(1, maxes[u])
-
-                u_sum_in = np.sum(u_A_in, 0)
-                u_sum_in[np.where(u_sum_in == 0)] = 1
-                u_A_in = np.divide(u_A_in, u_sum_in)
-
-                maxes = 2 * np.max(u_A, 1)
-                for u, v in loops:
-                    u_A[u, v] = max(1, maxes[u])
-                u_sum_out = np.sum(u_A, 1)
-                u_sum_out[np.where(u_sum_out == 0)] = 1
-                u_A_out = np.divide(u_A.transpose(), u_sum_out)
-            else:
-                if self.clip:
-                    for u, v in loops:
-                        u_A[u, v] = self.clip
-                    u_A = np.clip(u_A, a_min=0, a_max=self.clip)
-                u_A_sum = np.sum(u_A)
-                if u_A_sum:
-                    u_A_in = u_A / u_A_sum
-                    u_A_out = u_A.transpose() / u_A_sum
-                else:
-                    u_A_in = u_A.copy()
-                    u_A_out = u_A.transpose()
-
-                if not self.clip:
-                    Amax = 2 * np.max(u_A)
-                    for u, v in loops:
-                        u_A_in[u, v] = Amax
-                        u_A_out[u, v] = Amax
-            u_A = np.concatenate([u_A_in, u_A_out]).transpose()
-
-            if self.noise_std:
-                if random() < self.p:
-                    u_A += np.random.normal(
-                        loc=self.noise_mean, scale=self.noise_std, size=u_A.shape
-                    )
+            u_A = self.postprocess_matrix(u_A, loops)
 
             A.append(u_A)
             alias_inputs.append([np.where(node == i)[0][0] for i in u_input])

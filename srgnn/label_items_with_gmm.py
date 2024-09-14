@@ -10,7 +10,6 @@ from sklearn.mixture import GaussianMixture
 
 from srgnn_model import SRGNN_model
 from tagnn_model import TAGNN_model
-
 from utils import fake_parser
 
 torch.set_float32_matmul_precision("medium")
@@ -68,7 +67,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--tagnn",
-    action='store_true',
+    action="store_true",
     help="Run id of model on which to base lableling",
 )
 

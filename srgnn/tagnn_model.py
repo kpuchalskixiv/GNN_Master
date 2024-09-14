@@ -74,11 +74,15 @@ class TagnnSessionGraph(Module):
         self.linear_one = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_two = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_three = nn.Linear(self.hidden_size, 1, bias=False)
-        self.linear_transform = nn.Linear(self.hidden_size * 2, self.hidden_size, bias=True)
-        self.linear_t = nn.Linear(self.hidden_size, self.hidden_size, bias=False)  #target attention
+        self.linear_transform = nn.Linear(
+            self.hidden_size * 2, self.hidden_size, bias=True
+        )
+        self.linear_t = nn.Linear(
+            self.hidden_size, self.hidden_size, bias=False
+        )  # target attention
         self.loss_function = nn.CrossEntropyLoss()
-      #  self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.lr, weight_decay=opt.l2)
-      #  self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc)
+        #  self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.lr, weight_decay=opt.l2)
+        #  self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc)
         self.reset_parameters(opt.weight_init)
 
     def reset_parameters(self, weight_init):
@@ -101,26 +105,38 @@ class TagnnSessionGraph(Module):
             )
 
     def compute_scores(self, hidden, mask):
-        ht = hidden[torch.arange(mask.shape[0]).long(), torch.sum(mask, 1) - 1]  # batch_size x latent_size
-        q1 = self.linear_one(ht).view(ht.shape[0], 1, ht.shape[1])  # batch_size x 1 x latent_size
+        ht = hidden[
+            torch.arange(mask.shape[0]).long(), torch.sum(mask, 1) - 1
+        ]  # batch_size x latent_size
+        q1 = self.linear_one(ht).view(
+            ht.shape[0], 1, ht.shape[1]
+        )  # batch_size x 1 x latent_size
         q2 = self.linear_two(hidden)  # batch_size x seq_length x latent_size
         alpha = self.linear_three(torch.sigmoid(q1 + q2))  # (b,s,1)
         # alpha = torch.sigmoid(alpha) # B,S,1
-        alpha = F.softmax(alpha, 1) # B,S,1
-        a = torch.sum(alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1)  # (b,d)
+        alpha = F.softmax(alpha, 1)  # B,S,1
+        a = torch.sum(
+            alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1
+        )  # (b,d)
         if not self.nonhybrid:
             a = self.linear_transform(torch.cat([a, ht], 1))
         b = self.embedding.weight[1:]  # n_nodes x latent_size
         # target attention: sigmoid(hidden M b)
         # mask  # batch_size x seq_length
-        hidden = hidden * mask.view(mask.shape[0], -1, 1).float()  # batch_size x seq_length x latent_size
+        hidden = (
+            hidden * mask.view(mask.shape[0], -1, 1).float()
+        )  # batch_size x seq_length x latent_size
         qt = self.linear_t(hidden)  # batch_size x seq_length x latent_size
         # beta = torch.sigmoid(b @ qt.transpose(1,2))  # batch_size x n_nodes x seq_length
-        beta = F.softmax(b @ qt.transpose(1,2), -1)  # batch_size x n_nodes x seq_length
+        beta = F.softmax(
+            b @ qt.transpose(1, 2), -1
+        )  # batch_size x n_nodes x seq_length
         target = beta @ hidden  # batch_size x n_nodes x latent_size
         a = a.view(ht.shape[0], 1, ht.shape[1])  # b,1,d
         a = a + target  # b,n,d
-        scores = torch.sum(a.to(torch.float16) * b.to(torch.float16), -1).to(torch.float32)  # b,n
+        scores = torch.sum(a.to(torch.float16) * b.to(torch.float16), -1).to(
+            torch.float32
+        )  # b,n
         # scores = torch.matmul(a, b.transpose(1, 0))
         return scores
 
@@ -146,9 +162,10 @@ class TagnnSessionGraph(Module):
         return hidden
 
 
-
 class TAGNN_model(pl.LightningModule):
-    def __init__(self, opt=None, n_node=0, init_embeddings=None, name='TAGNN', **kwargs):
+    def __init__(
+        self, opt=None, n_node=0, init_embeddings=None, name="TAGNN", **kwargs
+    ):
         super().__init__()
         self.lr = opt.lr
         self.save_hyperparameters(ignore=["opt", "init_embeddings"])
@@ -245,7 +262,7 @@ class TAGNN_model(pl.LightningModule):
                 gamma=self.hparams.lr_dc,
             )
         else:
-            raise ValueError('Unknown (or not implemented) learning rate sheduler')
+            raise ValueError("Unknown (or not implemented) learning rate sheduler")
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

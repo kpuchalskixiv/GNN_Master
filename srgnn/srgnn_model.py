@@ -143,7 +143,9 @@ class SessionGraph(Module):
 
 
 class SRGNN_model(pl.LightningModule):
-    def __init__(self, opt=None, n_node=0, init_embeddings=None, name='SRGNN', **kwargs):
+    def __init__(
+        self, opt=None, n_node=0, init_embeddings=None, name="SRGNN", **kwargs
+    ):
         super().__init__()
         self.lr = opt.lr
         self.save_hyperparameters(ignore=["opt", "init_embeddings"])
@@ -153,6 +155,8 @@ class SRGNN_model(pl.LightningModule):
                 torch.FloatTensor(init_embeddings)
             )
         self.unfreeze_epoch = opt.unfreeze_epoch
+        if self.unfreeze_epoch:
+            self.freeze_embeddings()
 
     def forward(self, x):
         for i in range(len(x)):
@@ -240,7 +244,7 @@ class SRGNN_model(pl.LightningModule):
                 gamma=self.hparams.lr_dc,
             )
         else:
-            raise ValueError('Unknown (or not implemented) learning rate sheduler')
+            raise ValueError("Unknown (or not implemented) learning rate sheduler")
         return {
             "optimizer": optimizer,
             "lr_scheduler": {

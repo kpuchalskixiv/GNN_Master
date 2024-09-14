@@ -9,6 +9,7 @@ Created on July, 2018
 import argparse
 import os
 import pickle
+from typing import List
 
 import numpy as np
 import pytorch_lightning as pl
@@ -22,7 +23,6 @@ from pytorch_lightning.callbacks import (
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import List
 
 import wandb
 from srgnn_datasets import (
@@ -58,9 +58,9 @@ parser.add_argument(
 parser.add_argument(
     "--lr-milestones",
     type=int,
-    default=[2,5, 8],
+    default=[2, 5, 8],
     help="Shedule of steps after which the learning rate decay",
-    nargs='+'
+    nargs="+",
 )
 parser.add_argument(
     "--l2", type=float, default=1e-5, help="l2 penalty"
@@ -163,7 +163,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-gmm-init",
     type=str,
-    default='k-means++',
+    default="k-means++",
     help="initialization of gausoids used in GMM algorithm",
 )
 parser.add_argument(
@@ -383,7 +383,9 @@ def main():
         ),
     )
 
-    model = TAGNN_model(opt, n_node, init_embeddings=embeddings, name='TAGNN', **(opt.__dict__))
+    model = TAGNN_model(
+        opt, n_node, init_embeddings=embeddings, name="TAGNN", **(opt.__dict__)
+    )
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
     )

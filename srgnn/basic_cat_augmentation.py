@@ -70,7 +70,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--tagnn",
-    action='store_true',
+    action="store_true",
     help="Use TAGNN model",
 )
 parser = parser.parse_args()
@@ -112,5 +112,5 @@ def main():
         pickle.dump(cat_centers, f)
 
 
-if __name__=='__main__':
+if __name__ == "__main__":
     main()

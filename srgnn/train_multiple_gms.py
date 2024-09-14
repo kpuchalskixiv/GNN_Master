@@ -13,11 +13,18 @@ from pytorch_lightning.callbacks import (
 from torch.utils.data import DataLoader
 
 import wandb
-from srgnn.srgnn_model import SRGNN_Map_Dataset, SRGNN_model, SRGNN_sampler
+from srgnn_datasets import SRGNN_Map_Dataset, SRGNN_sampler
+from srgnn_model import SRGNN_model
 from utils import calculate_embeddings, fake_parser, split_validation
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--finetune", action="store_true", help="finetune")
+parser.add_argument(
+    "--run-id", type=str, required=True, help="Run Id on which clustering is based."
+)
+parser.add_argument(
+    "--gmm-clusters", type=int, default=32, help="Number of Gaussoids used in GMM."
+)
 flags = parser.parse_args()
 
 
@@ -54,7 +61,7 @@ def main():
 
     ## run_id of the global model to use as reference/finetune
     #  run_id='run-20240302_233004-xh5dmcet'
-    run_id = "run-20240404_162708-ekuo66ei"
+    run_id = flags.run_id  # "run-20240404_162708-ekuo66ei"
     ## same params as global model
     with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
         config = yaml.safe_load(stream)
@@ -109,7 +116,10 @@ def main():
         del item2id
 
     print("Start modelling clusters!")
-    no_clusters = 32  # max([f.split('_') for f in os.listdir(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/')])
+    no_clusters = (
+        flags.gmm_clusters
+    )  # max([f.split('_') for f in os.listdir(f'../datasets/{opt.dataset}/gm_all_splits_{opt.hiddenSize}/')])
+
     for cluster in range(no_clusters):
         try:
             (
@@ -120,13 +130,14 @@ def main():
             ) = get_datasets_and_dataloaders(
                 opt,
                 cluster,
-                f'../datasets/{opt.dataset}/gm_train_splits_{opt.hiddenSize}_{run_id.split("-")[-1]}/',
+                f'../datasets/{opt.dataset}/gm_train_{no_clusters}_splits_{opt.hiddenSize}_{run_id.split("-")[-1]}/',
             )
         except FileNotFoundError:
             print("File not found for cluster = ", cluster, " Continue...")
             continue
         print("Train sessions: ", train_dataset.length)
         print("Validation sessions: ", val_dataset.length)
+
         if flags.finetune:
             model = SRGNN_model.load_from_checkpoint(
                 f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
@@ -144,6 +155,13 @@ def main():
         if opt.unfreeze_epoch > 0:
             model.freeze_embeddings()
 
+        model.hparams.dataset = opt.dataset + "_cluster_" + str(no_clusters)
+        model.hparams.name += "_cluster_" + str(no_clusters)
+
+        model.lr *= model.hparams.lr_dc
+        model.hparams.lr_dc_step += 1
+
+        model.save_hyperparameters(ignore=["opt", "init_embeddings"])
         wandb_logger = pl.loggers.WandbLogger(
             project="GNN_master", entity="kpuchalskixiv", name=run_name, log_model=True
         )

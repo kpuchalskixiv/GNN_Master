@@ -95,13 +95,17 @@ parser.add_argument(
     help="epoch in which to unfreeze the embeddings layer",
 )
 parser.add_argument(
-    "--gmm", default=[], nargs='*', type=int, help="train GM on validation dataset after training"
+    "--gmm",
+    default=[],
+    nargs="*",
+    type=int,
+    help="train GM on validation dataset after training",
 )
 parser.add_argument(
     "--weight-init",
     type=str,
     default="normal",
-    help="Raw distances in adjacency matrix",
+    help="Type of torch.nn.init wieght initilization to use",
 )
 parser.add_argument(
     "--augment-matrix",
@@ -130,7 +134,9 @@ parser.add_argument(
     help="Normalize adjacency matrix as in basic approach",
 )
 parser.add_argument(
-    "--augment-raw", action="store_true", help="Raw distances in adjacency matrix"
+    "--augment-raw",
+    action="store_true",
+    help="[Depraceted] Raw distances in adjacency matrix",
 )
 parser.add_argument(
     "--augment-p",
