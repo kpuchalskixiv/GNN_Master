@@ -478,6 +478,22 @@ class Clusters_Matrix_Dataset(AugmentDataset):
                 u = np.where(node == u_input[i])[0][0]
                 v = np.where(node == u_input[i + 1])[0][0]
 
+                if random() < self.p:
+                    u_label = self.item_labels[u_input[i]]
+                    v_label = self.item_labels[u_input[i + 1]]
+                    if u_label == v_label:
+                        loops.append((u, v))
+                        continue
+                    if self.prenormalize_distances:
+                        u_A[u][v] = self.cluster_distances[u, v]
+                    else:
+                        u_A[u][v] = 1 / np.linalg.norm(
+                            self.cluster_centers[u_label]
+                            - self.cluster_centers[v_label]
+                        )
+                else:
+                    u_A[u][v] = 1
+
             u_A = self.postprocess_matrix(u_A, loops)
 
             A.append(u_A)
