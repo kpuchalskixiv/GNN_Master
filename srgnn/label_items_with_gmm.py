@@ -42,17 +42,7 @@ def load_data_model(run_id, tagnn=False):
             opt=opt,
         )
 
-    if "yoochoose" in opt.dataset:
-        items_df = pd.read_csv(f"../datasets/{opt.dataset}/items.csv").drop(
-            columns="Unnamed: 0"
-        )
-
-    elif "diginetica" in opt.dataset:
-        items_df = pd.read_csv("../datasets/diginetica/items.csv").drop(
-            columns="Unnamed: 0"
-        )
-
-    return items_df, model, opt
+    return model, opt
 
 
 def get_items_embedding(model, item_ids: torch.tensor):
@@ -60,9 +50,9 @@ def get_items_embedding(model, item_ids: torch.tensor):
 
 
 parser = argparse.ArgumentParser()
-parser = argparse.ArgumentParser()
 parser.add_argument(
     "--run-id",
+    required=True,
     help="Run id of model on which to base lableling",
 )
 parser.add_argument(
@@ -90,20 +80,39 @@ parser.add_argument(
     help="Algorithm with which to init means of gausoids",
 )
 
-parser = parser.parse_args()
 
+def main(flags_str=''):
 
-def main():
-    items_df, model, opt = load_data_model(parser.run_id, parser.tagnn)
+    if flags_str:
+        parser = parser.parse_args(flags_str.split())
+    else:
+        parser = parser.parse_args()
+
+    print(opt)
+
+    model, opt = load_data_model(parser.run_id, parser.tagnn)
+
+    if opt.dataset == "amazon_cd":
+        n_node = 157661 + 1
+    elif opt.dataset == "amzaon_Baby_Products":
+        n_node = 89555 + 1
+    elif opt.dataset == "amzaon_Musical_Instruments":
+        n_node = 68465 + 1
+    elif opt.dataset == "diginetica":
+        n_node = 43098
+    elif opt.dataset == "yoochoose1_64" or opt.dataset == "yoochoose1_4":
+        n_node = 37484
+    else:
+        n_node = 310
+
     items_embeddings = (
         get_items_embedding(
-            model, torch.arange(items_df.item_number.nunique() + 1, device=model.device)
+            model, torch.arange(n_node, device=model.device)
         )
         .cpu()
         .detach()
         .numpy()
     )
-    del items_df
     del model
 
     gm = GaussianMixture(
