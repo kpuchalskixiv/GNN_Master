@@ -161,28 +161,40 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         return self.length
 
     def blur_and_pad_matrix(self, M, max_n_node):
-        n=M.shape[0] # this is 
+        assert M.shape[0] == M.shape[1] # this is in/out part of adjacency matrix, should be square
+        n=M.shape[0] 
+        
         if self.noise_std:
             if random() < self.noise_p:
                 M += np.random.normal(
                     loc=self.noise_mean, scale=self.noise_std, size=(n,n)
                 )
-        M=np.pad(M, pad_width=max_n_node-n, constant_values=0)
+        M=np.pad(M, pad_width=(0, max_n_node-n), constant_values=0)
         return M
 
-    def __getitem__(self, idxs):
-        # print(idxs)
+    def _collect_correct_samples(self, idxs):
         if isinstance(idxs, int):
             idxs = [idxs]
         # print(idxs)
         inputs, mask, targets = self.inputs[idxs], self.mask[idxs], self.targets[idxs]
-        non_zero_cols = (mask != 0).sum(axis=0) != 0
-        inputs = inputs[:, non_zero_cols]
-        mask = mask[:, non_zero_cols]
-        items, n_node, A, alias_inputs = [], [], [], []
+        #   non_zero_cols = (mask != 0).sum(axis=0) != 0
+        #   inputs = inputs[:, non_zero_cols]
+        #   mask = mask[:, non_zero_cols]
+        max_zero_idx=np.argmin((mask != 0).sum(axis=0))
+        inputs=np.pad(inputs[:,:max_zero_idx], ((0,0),(0,1)), constant_values=0)
+        mask=np.pad(mask[:,:max_zero_idx], ((0,0),(0,1)), constant_values=0)
+               
+        n_node=[]
         for u_input in inputs:
             n_node.append(len(np.unique(u_input)))
-        max_n_node = np.max(n_node)  # length of the longest session in batch
+        max_n_node = np.max(n_node)# length of the longest session in batch + padding
+
+        return inputs, mask, targets, max_n_node
+
+    def __getitem__(self, idxs):
+
+        inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)
+        items, A, alias_inputs = [], [], []
 
         for u_input in inputs:
             node = np.unique(u_input)
@@ -360,18 +372,8 @@ class Augment_Matrix_Dataset(
         assert (not normalize) or (not clip), "Usage of both not implemented!"
 
     def __getitem__(self, idxs):
-        # print(idxs)
-        if isinstance(idxs, int):
-            idxs = [idxs]
-        # print(idxs)
-        inputs, mask, targets = self.inputs[idxs], self.mask[idxs], self.targets[idxs]
-        non_zero_cols = (mask != 0).sum(axis=0) != 0
-        inputs = inputs[:, non_zero_cols]
-        mask = mask[:, non_zero_cols]
-        items, n_node, A, alias_inputs = [], [], [], []
-        for u_input in inputs:
-            n_node.append(len(np.unique(u_input)))
-        max_n_node = np.max(n_node)  # length of the longest session in batch
+        inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)
+        items, A, alias_inputs = [], [], []
 
         for u_input in inputs:
             loops = []
@@ -457,18 +459,8 @@ class Clusters_Matrix_Dataset(AugmentDataset):
         self.cluster_distances = self.cluster_distances / self.cluster_distances.max()
 
     def __getitem__(self, idxs):
-        # print(idxs)
-        if isinstance(idxs, int):
-            idxs = [idxs]
-        # print(idxs)
-        inputs, mask, targets = self.inputs[idxs], self.mask[idxs], self.targets[idxs]
-        non_zero_cols = (mask != 0).sum(axis=0) != 0
-        inputs = inputs[:, non_zero_cols]
-        mask = mask[:, non_zero_cols]
-        items, n_node, A, alias_inputs = [], [], [], []
-        for u_input in inputs:
-            n_node.append(len(np.unique(u_input)))
-        max_n_node = np.max(n_node)  # length of the longest session in batch
+        inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)
+        items, A, alias_inputs = [], [], []
 
         for u_input in inputs:
             loops = []
