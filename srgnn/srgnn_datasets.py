@@ -126,7 +126,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         data,
         shuffle=False,
         graph=None,
-        p=1.0,
+        noise_p=1.0,
         noise_mean=0.01,
         noise_std=0.0,
     ):
@@ -143,7 +143,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
 
         self.start = 0
         self.end = self.length
-        self.p = p
+        self.noise_p = noise_p
         self.noise_mean = noise_mean
         self.noise_std = noise_std
 
@@ -159,6 +159,16 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
 
     def __len__(self):
         return self.length
+
+    def blur_and_pad_matrix(self, M, max_n_node):
+        n=M.shape[0] # this is 
+        if self.noise_std:
+            if random() < self.noise_p:
+                M += np.random.normal(
+                    loc=self.noise_mean, scale=self.noise_std, size=(n,n)
+                )
+        M=np.pad(M, pad_width=max_n_node-n, constant_values=0)
+        return M
 
     def __getitem__(self, idxs):
         # print(idxs)
@@ -177,7 +187,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         for u_input in inputs:
             node = np.unique(u_input)
             items.append(np.concatenate([node, np.zeros(max_n_node - len(node))]))
-            u_A = np.zeros((max_n_node, max_n_node))
+            u_A = np.zeros((len(node), len(node)))
             for i in np.arange(len(u_input) - 1):
                 if u_input[i + 1] == 0:
                     break
@@ -193,13 +203,10 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
             u_sum_out[np.where(u_sum_out == 0)] = 1
             u_A_out = np.divide(u_A.transpose(), u_sum_out)
 
-            u_A = np.concatenate([u_A_in, u_A_out]).transpose()
+            u_A_in=self.blur_and_pad_matrix(u_A_in, max_n_node)
+            u_A_out=self.blur_and_pad_matrix(u_A_out, max_n_node)
 
-            if self.noise_std:
-                if random() < self.p:
-                    u_A += np.random.normal(
-                        loc=self.noise_mean, scale=self.noise_std, size=u_A.shape
-                    )
+            u_A = np.concatenate([u_A_in, u_A_out]).transpose()
 
             A.append(u_A)
             alias_inputs.append([np.where(node == i)[0][0] for i in u_input])
@@ -284,7 +291,7 @@ class AugmentDataset(SRGNN_Map_Dataset):
 
         assert (not normalize) or (not clip), "Usage of both not implemented!"
 
-    def postprocess_matrix(self, u_A, loops):
+    def postprocess_matrix(self, u_A, loops, max_n_node):
         if self.normalize:
             maxes = 2 * np.max(u_A, 0)
             u_A_in = u_A.copy()
@@ -320,13 +327,9 @@ class AugmentDataset(SRGNN_Map_Dataset):
             u_A_in = u_A.copy()
             u_A_out = u_A.transpose()
 
+        u_A_in=self.blur_and_pad_matrix(u_A_in, max_n_node)
+        u_A_out=self.blur_and_pad_matrix(u_A_out, max_n_node)
         u_A = np.concatenate([u_A_in, u_A_out]).transpose()
-
-        if self.noise_std:
-            if random() < self.noise_p:
-                u_A += np.random.normal(
-                    loc=self.noise_mean, scale=self.noise_std, size=u_A.shape
-                )
         return u_A
 
 
@@ -382,7 +385,7 @@ class Augment_Matrix_Dataset(
                 .numpy()
             )
             items.append(np.concatenate([node, np.zeros(max_n_node - len(node))]))
-            u_A = np.zeros((max_n_node, max_n_node))
+            u_A = np.zeros((len(node), len(node)))
             for i in np.arange(len(u_input) - 1):
                 if u_input[i + 1] == 0:
                     break
@@ -398,7 +401,7 @@ class Augment_Matrix_Dataset(
                 else:
                     u_A[u][v] = 1
 
-            u_A = self.postprocess_matrix(u_A, loops)
+            u_A = self.postprocess_matrix(u_A, loops, max_n_node)
             A.append(u_A)
             alias_inputs.append([np.where(node == i)[0][0] for i in u_input])
         return (
@@ -471,7 +474,7 @@ class Clusters_Matrix_Dataset(AugmentDataset):
             loops = []
             node = np.unique(u_input)
             items.append(np.concatenate([node, np.zeros(max_n_node - len(node))]))
-            u_A = np.zeros((max_n_node, max_n_node))
+            u_A = np.zeros((len(node), len(node)))
             for i in np.arange(len(u_input) - 1):
                 if u_input[i + 1] == 0:
                     break
@@ -494,8 +497,7 @@ class Clusters_Matrix_Dataset(AugmentDataset):
                 else:
                     u_A[u][v] = 1
 
-            u_A = self.postprocess_matrix(u_A, loops)
-
+            u_A = self.postprocess_matrix(u_A, loops, max_n_node)
             A.append(u_A)
             alias_inputs.append([np.where(node == i)[0][0] for i in u_input])
         return (
