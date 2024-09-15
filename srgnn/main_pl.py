@@ -190,8 +190,6 @@ parser.add_argument(
     action="store_true",
     help="Use basic categories to modify adjacency matrix",
 )
-opt = parser.parse_args()
-print(opt)
 
 
 def train_gm(model, dataset, dataloader, run_id, components=[32]):
@@ -213,7 +211,14 @@ def train_gm(model, dataset, dataloader, run_id, components=[32]):
             pickle.dump(gm, gmm_file)
 
 
-def main():
+def main(flags_str=''):
+
+    if flags_str:
+        opt = parser.parse_args(flags_str.split())
+    else:
+        opt = parser.parse_args()
+    print(opt)
+
     assert (
         opt.lr_dc_step < opt.patience
     ), "lr decrease patience is bigger or equal to early stopping patience. Please change either or both"
@@ -413,7 +418,7 @@ def main():
     )
 
     trainer = pl.Trainer(
-        max_epochs=60,
+        max_epochs=opt.epoch,
         limit_train_batches=train_dataset.length // opt.batchSize,
         limit_val_batches=val_dataset.length // opt.batchSize,
         callbacks=[
@@ -425,13 +430,16 @@ def main():
         ],
         logger=wandb_logger,
     )
+
+    wandb.init(project='GNN_master')
+    wandb.define_metric("val_loss", summary="min")
+    wandb.define_metric("val_hit", summary="max")
+    wandb.define_metric("val_mrr", summary="max")
     trainer.fit(
         model=model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader
     )
     run_id = wandb.run.id
-    wandb.define_metric("val_loss", summary="min")
-    wandb.define_metric("val_hit", summary="max")
-    wandb.define_metric("val_mrr", summary="max")
+
     print("Finished training. Run id: ", run_id)
     wandb.finish()
     if opt.gmm:
@@ -443,7 +451,7 @@ def main():
             opt=opt,
         )
         train_gm(model, val_dataset, val_dataloader, run_id, opt.gmm)
-
+    return run_id
 
 if __name__ == "__main__":
     main()
