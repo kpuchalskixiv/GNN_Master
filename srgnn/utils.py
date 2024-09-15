@@ -171,27 +171,39 @@ def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node, epoch
     return embeddings
 
 
-def load_model(run_id):
-    with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
-        config = yaml.safe_load(stream)
+def load_model(run_id, tagnn=False):
+
+    if len(run_id.split("-")) == 1:
+        full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
+        with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+    else:
+        with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
 
     keys = list(config.keys())
     for k in keys:
-        if k == "old_run_id":
-            config["augment_old_run_id"] = config[k]["value"]
-            del config[k]
-        elif k not in fake_parser().__dict__.keys():
+        if k not in fake_parser().__dict__.keys():
             del config[k]
         else:
             config[k] = config[k]["value"]
 
     opt = fake_parser(**config)
+    print(opt.__dict__)
 
-    model = SRGNN_model.load_from_checkpoint(
-        f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
-        + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
-        opt=opt,
-    )
+    if tagnn:
+        model = TAGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+    else:
+        model = SRGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+
     return model, opt
 
 

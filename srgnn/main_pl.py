@@ -211,7 +211,7 @@ def train_gm(model, dataset, dataloader, run_id, components=[32]):
             pickle.dump(gm, gmm_file)
 
 
-def main(flags_str=''):
+def main(flags_str=""):
 
     if flags_str:
         opt = parser.parse_args(flags_str.split())
@@ -431,7 +431,7 @@ def main(flags_str=''):
         logger=wandb_logger,
     )
 
-    wandb.init(project='GNN_master')
+    wandb.init(project="GNN_master")
     wandb.define_metric("val_loss", summary="min")
     wandb.define_metric("val_hit", summary="max")
     wandb.define_metric("val_mrr", summary="max")
@@ -452,6 +452,7 @@ def main(flags_str=''):
         )
         train_gm(model, val_dataset, val_dataloader, run_id, opt.gmm)
     return run_id
+
 
 if __name__ == "__main__":
     main()
