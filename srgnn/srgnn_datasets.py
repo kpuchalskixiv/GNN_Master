@@ -14,21 +14,19 @@ def data_masks(all_usr_pois, item_tail):
    # for all_usr_pois_batch, us_lens_batch in tqdm(
     #    zip(all_usr_pois, us_lens), total=no_batches
   #  ):
-    us_pois = (
-        np.asarray(
+    us_pois = np.asarray(
             [
                 upois + item_tail * (len_max - le)
                 for upois, le in zip(all_usr_pois, us_lens)
             ],
             dtype=np.uint16,
         )
-    )
-    us_msks = (
-        np.asarray(
+    
+    us_msks = np.asarray(
             [[1] * le + [0] * (len_max - le) for le in us_lens],
             dtype=np.bool_,
         )
-    )
+    
 
     print("done masking")
     return us_pois, us_msks, len_max
