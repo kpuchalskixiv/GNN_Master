@@ -387,7 +387,7 @@ def main(flags_str=""):
         train_dataset = SRGNN_Map_Dataset(
             train_data,
             shuffle=True,
-            p=opt.augment_p,
+            noise_p=opt.augment_noise_p,
             noise_mean=opt.augment_mean,
             noise_std=opt.augment_std,
         )
