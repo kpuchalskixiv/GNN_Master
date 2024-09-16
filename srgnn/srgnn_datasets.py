@@ -165,10 +165,10 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         n=M.shape[0] 
         
         if self.noise_std:
-            if random() < self.noise_p:
-                M += np.random.normal(
-                    loc=self.noise_mean, scale=self.noise_std, size=(n,n)
-                )
+            noise_M = np.random.random(size=(n,n)) < self.noise_p
+            M += noise_M*np.random.normal(
+                loc=self.noise_mean, scale=self.noise_std, size=(n,n)
+            )
         M=np.pad(M, pad_width=(0, max_n_node-n), constant_values=0)
         return M
 
@@ -317,6 +317,7 @@ class AugmentDataset(SRGNN_Map_Dataset):
             maxes = 2 * np.max(u_A, 1)
             for u, v in loops:
                 u_A[u, v] = max(1, maxes[u])
+
             u_sum_out = np.sum(u_A, 1)
             u_sum_out[np.where(u_sum_out == 0)] = 1
             u_A_out = np.divide(u_A.transpose(), u_sum_out)
