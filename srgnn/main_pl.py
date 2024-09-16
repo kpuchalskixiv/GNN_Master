@@ -70,7 +70,7 @@ parser.add_argument("--step", type=int, default=1, help="gnn propogation steps")
 parser.add_argument(
     "--patience",
     type=int,
-    default=6,
+    default=10,
     help="the number of epoch to wait before early stop ",
 )
 parser.add_argument(
@@ -120,6 +120,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-old-run-id",
     type=str,
+    default='',
     help="Full ID of an old run, to use embeddings from",
 )
 parser.add_argument(
@@ -147,7 +148,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-noise-p",
     type=float,
-    default=1.0,
+    default=0.0,
     help="Probability of matrix augmentation occuring",
 )
 parser.add_argument(
@@ -182,7 +183,7 @@ parser.add_argument(
 parser.add_argument(
     "--lr-scheduler",
     type=str,
-    default="plateu",
+    default="step",
     help="Learning Rate scheduler to use",
 )
 parser.add_argument(
