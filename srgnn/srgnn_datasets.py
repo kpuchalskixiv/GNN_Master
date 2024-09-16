@@ -126,7 +126,7 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         data,
         shuffle=False,
         graph=None,
-        noise_p=1.0,
+        noise_p=0.0,
         noise_mean=0.01,
         noise_std=0.0,
     ):
