@@ -161,15 +161,17 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         return self.length
 
     def blur_and_pad_matrix(self, M, max_n_node):
-        assert M.shape[0] == M.shape[1] # this is in/out part of adjacency matrix, should be square
-        n=M.shape[0] 
-        
+        assert (
+            M.shape[0] == M.shape[1]
+        )  # this is in/out part of adjacency matrix, should be square
+        n = M.shape[0]
+
         if self.noise_std:
-            noise_M = np.random.random(size=(n,n)) < self.noise_p
-            M += noise_M*np.random.normal(
-                loc=self.noise_mean, scale=self.noise_std, size=(n,n)
+            noise_M = np.random.random(size=(n, n)) < self.noise_p
+            M += noise_M * np.random.normal(
+                loc=self.noise_mean, scale=self.noise_std, size=(n, n)
             )
-        M=np.pad(M, pad_width=(0, max_n_node-n), constant_values=0)
+        M = np.pad(M, pad_width=(0, max_n_node - n), constant_values=0)
         return M
 
     def _collect_correct_samples(self, idxs):
@@ -180,14 +182,14 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         #   non_zero_cols = (mask != 0).sum(axis=0) != 0
         #   inputs = inputs[:, non_zero_cols]
         #   mask = mask[:, non_zero_cols]
-        max_zero_idx=np.argmin((mask != 0).sum(axis=0))
-        inputs=np.pad(inputs[:,:max_zero_idx], ((0,0),(0,1)), constant_values=0)
-        mask=np.pad(mask[:,:max_zero_idx], ((0,0),(0,1)), constant_values=0)
-               
-        n_node=[]
+        max_zero_idx = np.argmin((mask != 0).sum(axis=0))
+        inputs = np.pad(inputs[:, :max_zero_idx], ((0, 0), (0, 1)), constant_values=0)
+        mask = np.pad(mask[:, :max_zero_idx], ((0, 0), (0, 1)), constant_values=0)
+
+        n_node = []
         for u_input in inputs:
             n_node.append(len(np.unique(u_input)))
-        max_n_node = np.max(n_node)# length of the longest session in batch + padding
+        max_n_node = np.max(n_node)  # length of the longest session in batch + padding
 
         return inputs, mask, targets, max_n_node
 
@@ -215,8 +217,8 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
             u_sum_out[np.where(u_sum_out == 0)] = 1
             u_A_out = np.divide(u_A.transpose(), u_sum_out)
 
-            u_A_in=self.blur_and_pad_matrix(u_A_in, max_n_node)
-            u_A_out=self.blur_and_pad_matrix(u_A_out, max_n_node)
+            u_A_in = self.blur_and_pad_matrix(u_A_in, max_n_node)
+            u_A_out = self.blur_and_pad_matrix(u_A_out, max_n_node)
 
             u_A = np.concatenate([u_A_in, u_A_out]).transpose()
 
@@ -279,7 +281,6 @@ class AugmentDataset(SRGNN_Map_Dataset):
         cluster_centers=None,
         clip=0,
         normalize=False,
-        raw=False,
         p=1.0,
         noise_p=1.0,
         noise_mean=0.01,
@@ -294,7 +295,6 @@ class AugmentDataset(SRGNN_Map_Dataset):
         self.clip = clip
         self.normalize = normalize
         self.prenormalize_distances = prenormalize_distances
-        self.raw = raw
 
         self.p = p
         self.noise_p = noise_p
@@ -340,8 +340,8 @@ class AugmentDataset(SRGNN_Map_Dataset):
             u_A_in = u_A.copy()
             u_A_out = u_A.transpose()
 
-        u_A_in=self.blur_and_pad_matrix(u_A_in, max_n_node)
-        u_A_out=self.blur_and_pad_matrix(u_A_out, max_n_node)
+        u_A_in = self.blur_and_pad_matrix(u_A_in, max_n_node)
+        u_A_out = self.blur_and_pad_matrix(u_A_out, max_n_node)
         u_A = np.concatenate([u_A_in, u_A_out]).transpose()
         return u_A
 
@@ -354,7 +354,6 @@ class Augment_Matrix_Dataset(
         emb_model=None,
         clip=0,
         normalize=False,
-        raw=False,
         p=1.0,
         noise_mean=0.01,
         noise_std=0.0,
@@ -366,7 +365,6 @@ class Augment_Matrix_Dataset(
         self.emb_model.eval()
         self.clip = clip
         self.normalize = normalize
-        self.raw = raw
         self.p = p
         self.noise_mean = noise_mean
         self.noise_std = noise_std
@@ -423,7 +421,6 @@ class Clusters_Matrix_Dataset(AugmentDataset):
         cluster_centers=None,
         clip=0,
         normalize=False,
-        raw=False,
         p=1.0,
         noise_p=1.0,
         noise_mean=0.01,

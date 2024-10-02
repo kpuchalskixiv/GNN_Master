@@ -115,12 +115,12 @@ parser.add_argument(
 parser.add_argument(
     "--augment-clusters",
     action="store_true",
-    help="Use clusters from GMM to modify adjacency matrix",
+    help="[Depraceted] - use augment-alg instead! Use clusters from GMM to modify adjacency matrix",
 )
 parser.add_argument(
     "--augment-old-run-id",
     type=str,
-    default='',
+    default="",
     help="Full ID of an old run, to use embeddings from",
 )
 parser.add_argument(
@@ -166,7 +166,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-categories",
     action="store_true",
-    help="Use basic categories to modify adjacency matrix",
+    help="[Depraceted] - use augment-alg instead! Use basic categories to modify adjacency matrix",
 )
 parser.add_argument(
     "--augment-nogmm",
@@ -190,6 +190,13 @@ parser.add_argument(
     "--augment-prenormalize-distances",
     action="store_true",
     help="Use basic categories to modify adjacency matrix",
+)
+parser.add_argument(
+    "--augment-alg",
+    type=str,
+    default="gmm",
+    choices=["gmm", "kmeans", "categories", "raw"],
+    help="Augment with clusters distance based on GMM, KMeans or basic dataset item categories, eventually with raw item2item distance.",
 )
 
 
@@ -269,14 +276,14 @@ def main(flags_str=""):
         del item2id
 
     if opt.augment_matrix:
-        if opt.augment_clusters:
+        if opt.augment_alg in ["gmm", "kmeans"]:
             with open(
-                f"../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 item_labels = pickle.load(f)
             with open(
-                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 cluster_centers = pickle.load(f)
@@ -286,7 +293,6 @@ def main(flags_str=""):
                 cluster_centers,
                 clip=opt.augment_clip,
                 normalize=opt.augment_normalize,
-                raw=opt.augment_raw,
                 p=opt.augment_p,
                 noise_p=opt.augment_noise_p,
                 noise_mean=opt.augment_mean,
@@ -302,18 +308,17 @@ def main(flags_str=""):
                 #  cluster_centers,
                 # clip=opt.augment_clip,
                 # normalize=opt.augment_normalize,
-                # raw=opt.augment_raw,
                 data=valid_data
             )
             del valid_data
-        elif opt.augment_categories:
+        elif opt.augment_alg == "categories":
             with open(
-                f"../datasets/{opt.dataset}/category_labels_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 item_labels = pickle.load(f)
             with open(
-                f"../datasets/{opt.dataset}/category_embeddings_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 cluster_centers = pickle.load(f)
@@ -323,7 +328,6 @@ def main(flags_str=""):
                 cluster_centers,
                 clip=opt.augment_clip,
                 normalize=opt.augment_normalize,
-                raw=opt.augment_raw,
                 p=opt.augment_p,
                 noise_p=opt.augment_noise_p,
                 noise_mean=opt.augment_mean,
@@ -336,7 +340,7 @@ def main(flags_str=""):
             val_dataset = SRGNN_Map_Dataset(data=valid_data)
             del valid_data
 
-        else:
+        elif opt.augment_alg == "raw":
             with open(
                 f"./wandb/{opt.augment_old_run_id}/files/config.yaml", "r"
             ) as stream:
@@ -368,7 +372,6 @@ def main(flags_str=""):
                 emb_model,
                 clip=opt.augment_clip,
                 normalize=opt.augment_normalize,
-                raw=opt.augment_raw,
                 p=opt.augment_p,
                 noise_mean=opt.augment_mean,
                 noise_std=opt.augment_std,
@@ -380,10 +383,11 @@ def main(flags_str=""):
                 # emb_model,
                 # clip=opt.augment_clip,
                 # normalize=opt.augment_normalize,
-                # raw=opt.augment_raw,
                 data=valid_data
             )
             del valid_data
+        else:
+            assert False, "Unknown augmentation algorithm!"
     else:
         train_dataset = SRGNN_Map_Dataset(
             train_data,
