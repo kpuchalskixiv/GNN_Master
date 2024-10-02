@@ -3,7 +3,7 @@ import pickle
 
 import numpy as np
 import torch
-from sklearn.mixture import GaussianMixture
+from sklearn.cluster import KMeans
 
 from utils import load_model
 
@@ -30,13 +30,13 @@ parser.add_argument(
     "--no-clusters",
     type=int,
     default=16,
-    help="Number of clusters in GMM",
+    help="Number of clusters in kmeansM",
 )
 parser.add_argument(
     "--n-init",
     type=int,
-    default=2,
-    help="Number of times to recalculate EM for GMM",
+    default=8,
+    help="Number of times to recalculate EM for kmeansM",
 )
 parser.add_argument(
     "--init-params",
@@ -76,24 +76,23 @@ def main(flags_str=""):
     )
     del model
 
-    gm = GaussianMixture(
-        n_components=parser_opt.no_clusters,
+    kmeans = KMeans(
+        n_clusters=parser_opt.no_clusters,
         n_init=parser_opt.n_init,
-        init_params=parser_opt.init_params,
-        weights_init=np.ones(parser_opt.no_clusters) / parser_opt.no_clusters,
+        init=parser_opt.init_params,
     )
-    item_labels = gm.fit_predict(items_embeddings)
+    item_labels = kmeans.fit_predict(items_embeddings)
     print(np.unique(item_labels, return_counts=True))
     with open(
-        f"../datasets/{opt.dataset}/item_labels_gmm_{gm.n_components}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/item_labels_kmeans_{kmeans.n_clusters}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(item_labels, f)
     with open(
-        f"../datasets/{opt.dataset}/cluster_centers_gmm_{gm.n_components}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/cluster_centers_kmeans_{kmeans.n_clusters}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
-        pickle.dump(gm.means_, f)
+        pickle.dump(kmeans.cluster_centers_, f)
 
 
 if __name__ == "__main__":

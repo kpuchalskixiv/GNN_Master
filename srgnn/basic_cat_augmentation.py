@@ -65,12 +65,12 @@ def main(flags_str=""):
         cat_items = items_df.loc[items_df.category == cat].item_number.values
         cat_centers[cat] = np.average(base_items_embeddings[cat_items], axis=0)
     with open(
-        f"../datasets/{opt.dataset}/category_labels_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/item_labels_categories_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(items_categories, f)
     with open(
-        f"../datasets/{opt.dataset}/category_embeddings_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/cluster_centers_categories_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(cat_centers, f)
