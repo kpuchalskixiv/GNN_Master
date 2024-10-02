@@ -60,6 +60,7 @@ class fake_parser:
         augment_mean=0.01,
         augment_std=0,
         augment_prenormalize_distances=False,
+        augment_alg='gmm',
     ):
         self.dataset = dataset
         self.batchSize = batchSize
@@ -92,6 +93,7 @@ class fake_parser:
         self.augment_gmm_init = augment_gmm_init
         self.augment_prenormalize_distances = augment_prenormalize_distances
         self.augment_noise_p = augment_noise_p
+        self.augment_alg=augment_alg
 
 
 def build_graph(train_data):
