@@ -446,15 +446,16 @@ class Clusters_Matrix_Dataset(AugmentDataset):
         no_clusters = len(cluster_centers)
         self.cluster_distances = np.zeros((no_clusters, no_clusters))
 
-        for i in range(no_clusters):
-            self.cluster_distances[i] = np.linalg.norm(
-                cluster_centers - cluster_centers[i], axis=1
-            )
-        self.cluster_distances = 1 / self.cluster_distances
-        self.cluster_distances[self.cluster_distances == np.inf] = 0
-        s = self.cluster_distances.sum(axis=1)
-        self.cluster_distances = self.cluster_distances / s.reshape(no_clusters, 1)
-        self.cluster_distances = self.cluster_distances / self.cluster_distances.max()
+        if not isinstance(cluster_centers, dict):
+            for i in range(no_clusters):
+                self.cluster_distances[i] = np.linalg.norm(
+                    cluster_centers - cluster_centers[i], axis=1
+                )
+            self.cluster_distances = 1 / self.cluster_distances
+            self.cluster_distances[self.cluster_distances == np.inf] = 0
+            s = self.cluster_distances.sum(axis=1)
+            self.cluster_distances = self.cluster_distances / s.reshape(no_clusters, 1)
+            self.cluster_distances = self.cluster_distances / self.cluster_distances.max()
 
     def __getitem__(self, idxs):
         inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)

@@ -33,7 +33,7 @@ from srgnn_datasets import (
     SRGNN_sampler,
 )
 from srgnn_model import SRGNN_model
-from utils import calculate_embeddings, fake_parser, split_validation
+from utils import calculate_embeddings, fake_parser, split_validation, load_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -341,19 +341,9 @@ def main(flags_str=""):
             del valid_data
 
         elif opt.augment_alg == "raw":
-            with open(
-                f"./wandb/{opt.augment_old_run_id}/files/config.yaml", "r"
-            ) as stream:
-                config = yaml.safe_load(stream)
+            
+            old_model, old_opt=load_model(opt.augment_old_run_id, False)
 
-            keys = list(config.keys())
-            for k in keys:
-                if k not in fake_parser().__dict__.keys():
-                    del config[k]
-                else:
-                    config[k] = config[k]["value"]
-
-            old_opt = fake_parser(**config)
             assert (
                 old_opt.dataset == opt.dataset
             ), f"Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!"
@@ -361,13 +351,8 @@ def main(flags_str=""):
                 old_opt.hiddenSize == opt.hiddenSize
             ), f"Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!"
 
-            emb_model = SRGNN_model.load_from_checkpoint(
-                f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
-                + os.listdir(
-                    f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
-                )[0],
-                opt=old_opt,
-            ).model.embedding
+            emb_model = old_model.model.embedding
+            del old_model
             train_dataset = Augment_Matrix_Dataset(
                 emb_model,
                 clip=opt.augment_clip,
