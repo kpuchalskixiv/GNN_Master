@@ -22,7 +22,7 @@ from srgnn_datasets import (
     Clusters_Matrix_Dataset,
     SRGNN_Map_Dataset,
 )
-from srgnn_model import SRGNN_model
+from srgnn_model import SRGNN_model, GMGNN_model
 from tagnn_model import TAGNN_model
 
 
@@ -61,6 +61,8 @@ class fake_parser:
         augment_std=0,
         augment_prenormalize_distances=False,
         augment_alg='gmm',
+        gmm_covariance_type='full',
+        gmm_tol=1e-3,
     ):
         self.dataset = dataset
         self.batchSize = batchSize
@@ -94,6 +96,8 @@ class fake_parser:
         self.augment_prenormalize_distances = augment_prenormalize_distances
         self.augment_noise_p = augment_noise_p
         self.augment_alg=augment_alg
+        self.gmm_covariance_type=gmm_covariance_type
+        self.gmm_tol=gmm_tol
 
 
 def build_graph(train_data):
@@ -209,42 +213,54 @@ def load_model(run_id, tagnn=False):
     return model, opt
 
 
-def get_dataset(opt):
-    test_data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
+def load_model_gm(run_id, tagnn=False):
+
+    if len(run_id.split("-")) == 1:
+        full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
+        with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+    else:
+        with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+
+    keys = list(config.keys())
+    for k in keys:
+        if k not in fake_parser().__dict__.keys():
+            del config[k]
+        else:
+            config[k] = config[k]["value"]
+
+    opt = fake_parser(**config)
+    print(opt.__dict__)
+
+    if tagnn:
+        model = TAGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+    else:
+        model = GMGNN_model.load_from_checkpoint(
+            f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/"
+            + os.listdir(f"./GNN_master/{run_id.split('-')[-1]}/checkpoints/")[0],
+            opt=opt,
+        )
+
+    return model, opt
+
+def get_dataset(opt, data=None, shuffle=False):
+    if not data:
+        data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
 
     if opt.augment_matrix:
-        if opt.augment_clusters:
+        if opt.augment_alg in ["gmm", "kmeans"]:
             with open(
-                f"../datasets/{opt.dataset}/item_labels_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 item_labels = pickle.load(f)
             with open(
-                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
-                "rb",
-            ) as f:
-                cluster_centers = pickle.load(f)
-            dataset = Clusters_Matrix_Dataset(
-                item_labels,
-                cluster_centers,
-                clip=opt.augment_clip,
-                normalize=opt.augment_normalize,
-                p=opt.augment_p,
-                noise_p=opt.augment_noise_p,
-                noise_mean=opt.augment_mean,
-                noise_std=opt.augment_std,
-                prenormalize_distances=opt.augment_prenormalize_distances,
-                data=test_data,
-                shuffle=False,
-            )
-        elif opt.augment_categories:
-            with open(
-                f"../datasets/{opt.dataset}/category_labels_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
-                "rb",
-            ) as f:
-                item_labels = pickle.load(f)
-            with open(
-                f"../datasets/{opt.dataset}/category_embeddings_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
             ) as f:
                 cluster_centers = pickle.load(f)
@@ -259,18 +275,24 @@ def get_dataset(opt):
                 noise_mean=opt.augment_mean,
                 noise_std=opt.augment_std,
                 prenormalize_distances=opt.augment_prenormalize_distances,
-                data=test_data,
-                shuffle=False,
+                data=data,
+                shuffle=shuffle,
             )
-        else:
-            dataset = Augment_Matrix_Dataset(
-                SRGNN_model.load_from_checkpoint(
-                    f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
-                    + os.listdir(
-                        f"./GNN_master/{opt.augment_old_run_id.split('-')[-1]}/checkpoints/"
-                    )[0],
-                    opt=opt,
-                ).model.embedding,
+        elif opt.augment_alg == "categories":
+            with open(
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
+
+            dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
                 clip=opt.augment_clip,
                 normalize=opt.augment_normalize,
                 p=opt.augment_p,
@@ -278,11 +300,37 @@ def get_dataset(opt):
                 noise_mean=opt.augment_mean,
                 noise_std=opt.augment_std,
                 prenormalize_distances=opt.augment_prenormalize_distances,
-                data=test_data,
-                shuffle=False,
+                data=data,
+                shuffle=shuffle,
             )
+        elif opt.augment_alg == "raw":
+            
+            old_model, old_opt=load_model(opt.augment_old_run_id, False)
+            assert (
+                old_opt.dataset == opt.dataset
+            ), f"Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!"
+            assert (
+                old_opt.hiddenSize == opt.hiddenSize
+            ), f"Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!"
+
+            emb_model = old_model.model.embedding
+            del old_model            
+            dataset = Augment_Matrix_Dataset(
+                emb_model,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
+                data=data,
+                shuffle=shuffle,
+            )
+        else:
+            assert False, "Unknown augmentation algorithm!"
     else:
-        dataset = SRGNN_Map_Dataset(data=test_data, shuffle=False)
+        dataset = SRGNN_Map_Dataset(data=data, shuffle=shuffle)
     return dataset
 
 
