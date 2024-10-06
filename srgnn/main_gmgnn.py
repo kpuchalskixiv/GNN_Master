@@ -32,8 +32,8 @@ from srgnn_datasets import (
     SRGNN_Map_Dataset,
     SRGNN_sampler,
 )
-from srgnn_model import SRGNN_model
-from utils import calculate_embeddings, fake_parser, split_validation, load_model, get_dataset
+from srgnn_model import GMGNN_model
+from utils import calculate_embeddings, fake_parser, split_validation, load_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -120,7 +120,7 @@ parser.add_argument(
 parser.add_argument(
     "--augment-old-run-id",
     type=str,
-    default="",
+    required=True,
     help="Full ID of an old run, to use embeddings from",
 )
 parser.add_argument(
@@ -180,6 +180,19 @@ parser.add_argument(
     default="k-means++",
     help="initialization of gausoids used in GMM algorithm",
 )
+parser.add_argument(
+    "--gmm-covariance-type",
+    type=str,
+    default="full",
+    help="Bonds on covariance matrix of every gaussoid. Lookup sklearn docs.",
+)
+parser.add_argument(
+    "--gmm-tol",
+    type=float,
+    default=1e-3,
+    help="The convergence threshold.",
+)
+
 parser.add_argument(
     "--lr-scheduler",
     type=str,
@@ -275,16 +288,121 @@ def main(flags_str=""):
         del items_in_train
         del item2id
 
-    train_dataset=get_dataset(opt, train_data, shuffle=True)
-    del train_data
-    val_dataset = SRGNN_Map_Dataset(valid_data)
-    del valid_data
+    if opt.augment_matrix:
+        if opt.augment_alg in ["gmm", "kmeans"]:
+            with open(
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
+
+            train_dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
+                data=train_data,
+                shuffle=True,
+            )
+            del train_data
+
+            val_dataset = SRGNN_Map_Dataset(
+                #   item_labels,
+                #  cluster_centers,
+                # clip=opt.augment_clip,
+                # normalize=opt.augment_normalize,
+                data=valid_data
+            )
+            del valid_data
+        elif opt.augment_alg == "categories":
+            with open(
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
+
+            train_dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
+                data=train_data,
+                shuffle=True,
+            )
+            del train_data
+            val_dataset = SRGNN_Map_Dataset(data=valid_data)
+            del valid_data
+
+        elif opt.augment_alg == "raw":
+            
+            old_model, old_opt=load_model(opt.augment_old_run_id, False)
+
+            assert (
+                old_opt.dataset == opt.dataset
+            ), f"Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!"
+            assert (
+                old_opt.hiddenSize == opt.hiddenSize
+            ), f"Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!"
+
+            emb_model = old_model.model.embedding
+            del old_model
+            train_dataset = Augment_Matrix_Dataset(
+                emb_model,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                p=opt.augment_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                data=train_data,
+                shuffle=True,
+            )
+            del train_data
+            val_dataset = SRGNN_Map_Dataset(
+                # emb_model,
+                # clip=opt.augment_clip,
+                # normalize=opt.augment_normalize,
+                data=valid_data
+            )
+            del valid_data
+        else:
+            assert False, "Unknown augmentation algorithm!"
+    else:
+        train_dataset = SRGNN_Map_Dataset(
+            train_data,
+            shuffle=True,
+            noise_p=opt.augment_noise_p,
+            noise_mean=opt.augment_mean,
+            noise_std=opt.augment_std,
+        )
+        del train_data
+        val_dataset = SRGNN_Map_Dataset(valid_data)
+        del valid_data
 
     train_dataloader = DataLoader(
         train_dataset,
         num_workers=os.cpu_count() - 2,
         sampler=SRGNN_sampler(
-            train_dataset, opt.batchSize, shuffle=True, drop_last=True
+            train_dataset, opt.batchSize, shuffle=True, drop_last=False
         ),
     )
     val_dataloader = DataLoader(
@@ -295,8 +413,8 @@ def main(flags_str=""):
         ),
     )
 
-    model = SRGNN_model(
-        opt, n_node, init_embeddings=embeddings, name="SRGNN", **(opt.__dict__)
+    model = GMGNN_model(
+        opt, n_node, init_embeddings=embeddings, name="GMGNN", **(opt.__dict__)
     )
     wandb_logger = pl.loggers.WandbLogger(
         project="GNN_master", entity="kpuchalskixiv", log_model=True
@@ -330,7 +448,7 @@ def main(flags_str=""):
     if opt.gmm:
         del train_dataset
         del train_dataloader
-        model = SRGNN_model.load_from_checkpoint(
+        model = GMGNN_model.load_from_checkpoint(
             f"./GNN_master/{run_id}/checkpoints/"
             + os.listdir(f"./GNN_master/{run_id}/checkpoints/")[0],
             opt=opt,

@@ -44,7 +44,18 @@ parser.add_argument(
     default="k-means++",
     help="Algorithm with which to init means of gausoids",
 )
-
+parser.add_argument(
+    "--covariance-type",
+    type=str,
+    default="full",
+    help="Bonds on covariance matrix of every gaussoid. Lookup sklearn docs.",
+)
+parser.add_argument(
+    "--tol",
+    type=float,
+    default=1e-3,
+    help="The convergence threshold.",
+)
 
 def main(flags_str=""):
 
@@ -81,19 +92,27 @@ def main(flags_str=""):
         n_init=parser_opt.n_init,
         init_params=parser_opt.init_params,
         weights_init=np.ones(parser_opt.no_clusters) / parser_opt.no_clusters,
+        verbose=1,
+        covariance_type=parser_opt.covariance_type,
+        tol=parser_opt.tol,
     )
     item_labels = gm.fit_predict(items_embeddings)
     print(np.unique(item_labels, return_counts=True))
     with open(
-        f"../datasets/{opt.dataset}/item_labels_gmm_{gm.n_components}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/item_labels_gmm_{gm.n_components}_{parser_opt.init_params}_{parser_opt.covariance_type}_{parser_opt.tol}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(item_labels, f)
     with open(
-        f"../datasets/{opt.dataset}/cluster_centers_gmm_{gm.n_components}_{parser_opt.init_params}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        f"../datasets/{opt.dataset}/cluster_centers_gmm_{gm.n_components}_{parser_opt.init_params}_{parser_opt.covariance_type}_{parser_opt.tol}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
         "wb",
     ) as f:
         pickle.dump(gm.means_, f)
+    with open(
+        f"../datasets/{opt.dataset}/gmm_model_{gm.n_components}_{parser_opt.init_params}_{parser_opt.covariance_type}_{parser_opt.tol}_{opt.hiddenSize}_{parser_opt.run_id.split('-')[-1]}.txt",
+        "wb",
+    ) as f:
+        pickle.dump(gm, f)
 
 
 if __name__ == "__main__":
