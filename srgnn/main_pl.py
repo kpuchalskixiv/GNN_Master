@@ -118,14 +118,14 @@ def main(flags_str=""):
 
     train_dataloader = DataLoader(
         train_dataset,
-        num_workers=os.cpu_count() - 2,
+        num_workers=os.cpu_count(),
         sampler=SRGNN_sampler(
             train_dataset, opt.batchSize, shuffle=True, drop_last=True
         ),
     )
     val_dataloader = DataLoader(
         val_dataset,
-        num_workers=os.cpu_count() - 2,
+        num_workers=os.cpu_count(),
         sampler=SRGNN_sampler(
             val_dataset, opt.batchSize, shuffle=False, drop_last=False
         ),
