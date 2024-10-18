@@ -190,7 +190,7 @@ def load_model(run_id):
             config = yaml.safe_load(stream)
 
     keys = list(config.keys())
-    if config['name']=='TAGNN':
+    if config['name']["value"]=='TAGNN':
         tagnn=True
     for k in keys:
         if k not in fake_parser().__dict__.keys():
