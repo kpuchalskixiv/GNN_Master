@@ -81,12 +81,12 @@ def main():
     opt = fake_parser(**config)
     if flags.finetune:
         opt.pretrained_embedings = False
-        opt.unfreeze_epoch = 1
-        opt.lr /=2
+        opt.unfreeze_epoch = 2
+        opt.lr = 1e-4
     ## decrease validation ratio and increase patinece, as we have much fewer data per model
     opt.valid_portion = 0.1
     #opt.patience = 8
-    #opt.lr_dc_step = 2
+    opt.lr_dc_step = 2
     print(opt.__dict__)
 
     if opt.dataset == "diginetica":
@@ -163,10 +163,16 @@ def main():
         model.hparams.dataset = opt.dataset + "_cluster_" + str(no_clusters)
         model.hparams.name += "_cluster_" + str(no_clusters)
 
-        model.lr *= model.hparams.lr_dc
-        model.hparams.lr_dc_step += 1
+        model.lr = opt.lr
+        model.hparams.lr_dc_step = opt.lr_dc_step
+        model.hparams.lr_dc = opt.lr_dc
+        model.hparams.l2 = opt.l2
+        model.hparams.lr_milestones = opt.lr_milestones
+        model.hparams.unfreeze_epoch=opt.unfreeze_epoch
 
         model.save_hyperparameters(ignore=["opt", "init_embeddings"])
+        model.configure_optimizers()
+
         wandb_logger = pl.loggers.WandbLogger(
             project="GNN_master", entity="kpuchalskixiv", name=run_name, log_model=True
         )
