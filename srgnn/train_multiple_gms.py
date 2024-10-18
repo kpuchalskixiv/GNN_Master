@@ -63,8 +63,13 @@ def main():
     #  run_id='run-20240302_233004-xh5dmcet'
     run_id = flags.run_id  # "run-20240404_162708-ekuo66ei"
     ## same params as global model
-    with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
-        config = yaml.safe_load(stream)
+    if len(run_id.split("-")) == 1:
+        full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
+        with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+    else:
+        with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
 
     keys = list(config.keys())
     for k in keys:
@@ -77,11 +82,11 @@ def main():
     if flags.finetune:
         opt.pretrained_embedings = False
         opt.unfreeze_epoch = 1
-        opt.lr = 1e-4
+        opt.lr /=2
     ## decrease validation ratio and increase patinece, as we have much fewer data per model
     opt.valid_portion = 0.1
-    opt.patience = 8
-    opt.lr_dc_step = 2
+    #opt.patience = 8
+    #opt.lr_dc_step = 2
     print(opt.__dict__)
 
     if opt.dataset == "diginetica":
