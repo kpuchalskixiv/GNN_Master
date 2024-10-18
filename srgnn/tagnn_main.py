@@ -76,7 +76,7 @@ def main(flags_str=""):
         n_node = 310
 
     embeddings = None
-    if opt.pretrained_embedings:
+    if opt.pretrained_embeddings:
         clicks_df = pickle.load(open(f"../datasets/{opt.dataset}/yoo_df.txt", "rb"))
         items_in_train = pickle.load(
             open(f"../datasets/{opt.dataset}/items_in_train.txt", "rb")
