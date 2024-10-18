@@ -179,7 +179,7 @@ def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node, epoch
     return embeddings
 
 
-def load_model(run_id, tagnn=False):
+def load_model(run_id):
 
     if len(run_id.split("-")) == 1:
         full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
@@ -190,6 +190,8 @@ def load_model(run_id, tagnn=False):
             config = yaml.safe_load(stream)
 
     keys = list(config.keys())
+    if config['name']=='TAGNN':
+        tagnn=True
     for k in keys:
         if k not in fake_parser().__dict__.keys():
             del config[k]
@@ -337,8 +339,13 @@ def get_dataset(opt, data=None, shuffle=False):
 
 
 def load_model_tagnn(run_id):
-    with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
-        config = yaml.safe_load(stream)
+    if len(run_id.split("-")) == 1:
+        full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
+        with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+    else:
+        with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
 
     keys = list(config.keys())
     for k in keys:
