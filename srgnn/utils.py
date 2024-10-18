@@ -37,6 +37,7 @@ class fake_parser:
         lr_dc=0.1,
         lr_dc_step=3,
         lr_scheduler='step',
+        lr_milestones=[2,5,8],
         l2=1e-5,
         step=1,
         patience=6,
@@ -73,6 +74,7 @@ class fake_parser:
         self.lr_dc = lr_dc
         self.lr_dc_step = lr_dc_step
         self.lr_scheduler = lr_scheduler
+        self.lr_milestones=lr_milestones,
         self.l2 = l2
         self.step = step
         self.patience = patience
