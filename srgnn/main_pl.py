@@ -200,7 +200,8 @@ parser.add_argument(
 )
 
 
-def train_gm(model, dataset, dataloader, run_id, components=[32]):
+def train_gm(model, dataset, dataloader, run_id, opt):
+    components=opt.gmm
     session_emb = []
 
     model.to("cuda")
@@ -335,7 +336,7 @@ def main(flags_str=""):
             + os.listdir(f"./GNN_master/{run_id}/checkpoints/")[0],
             opt=opt,
         )
-        train_gm(model, val_dataset, val_dataloader, run_id, opt.gmm)
+        train_gm(model, val_dataset, val_dataloader, run_id, opt)
     return run_id
 
 

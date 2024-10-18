@@ -168,6 +168,8 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
 
         if self.noise_std:
             noise_M = np.random.random(size=(n, n)) < self.noise_p
+            noise_M[0]=0
+            noise_M[:, 0]=0 # zero out values for padding item - number 0
             M += noise_M * np.random.normal(
                 loc=self.noise_mean, scale=self.noise_std, size=(n, n)
             )
