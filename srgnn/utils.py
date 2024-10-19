@@ -192,6 +192,8 @@ def load_model(run_id, tagnn=False):
             config = yaml.safe_load(stream)
 
     keys = list(config.keys())
+    if config['name']["value"]=='TAGNN':
+        tagnn=True    
     for k in keys:
         if k not in fake_parser().__dict__.keys():
             del config[k]
@@ -257,7 +259,32 @@ def get_dataset(opt, data=None, shuffle=False):
         data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
 
     if opt.augment_matrix:
-        if opt.augment_alg in ["gmm", "kmeans"]:
+        if opt.augment_alg == "gmm":
+            with open(
+                f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.augment_gmm_covariance}_{opt.augment_gmm_tol}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                item_labels = pickle.load(f)
+            with open(
+                f"../datasets/{opt.dataset}/cluster_centers_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.augment_gmm_covariance}_{opt.augment_gmm_tol}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+                "rb",
+            ) as f:
+                cluster_centers = pickle.load(f)
+
+            dataset = Clusters_Matrix_Dataset(
+                item_labels,
+                cluster_centers,
+                clip=opt.augment_clip,
+                normalize=opt.augment_normalize,
+                p=opt.augment_p,
+                noise_p=opt.augment_noise_p,
+                noise_mean=opt.augment_mean,
+                noise_std=opt.augment_std,
+                prenormalize_distances=opt.augment_prenormalize_distances,
+                data=data,
+                shuffle=shuffle,
+            )
+        elif opt.augment_alg=='kmeans':
             with open(
                 f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",

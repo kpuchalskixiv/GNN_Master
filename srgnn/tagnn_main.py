@@ -286,7 +286,7 @@ def main(flags_str=""):
             opt=opt,
         )
         train_gm(model, val_dataset, val_dataloader)
-
+    return run_id
 
 if __name__ == "__main__":
     main()

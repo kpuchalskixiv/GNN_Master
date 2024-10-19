@@ -147,6 +147,18 @@ parser.add_argument(
     help="initialization of gausoids used in GMM algorithm",
 )
 parser.add_argument(
+    "--augment-gmm-covariance",
+    type=str,
+    default="full",
+    help="initialization of gausoids used in GMM algorithm",
+)
+parser.add_argument(
+    "--augment-gmm-tol",
+    type=float,
+    default=1e-3,
+    help="initialization of gausoids used in GMM algorithm",
+)
+parser.add_argument(
     "--lr-scheduler",
     type=str,
     default="step",
