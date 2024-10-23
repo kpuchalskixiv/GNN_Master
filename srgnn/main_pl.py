@@ -92,6 +92,8 @@ def main(flags_str=""):
         n_node = 27809
     elif opt.dataset == "yoochoose_custom_augmented_5050":
         n_node = 27807
+    elif opt.dataset == "otto-recsys":
+        n_node = 19679 + 1
     else:
         n_node = 310
 

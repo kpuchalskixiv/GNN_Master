@@ -76,6 +76,8 @@ def main(flags_str=""):
         n_node = 43098
     elif opt.dataset == "yoochoose1_64" or opt.dataset == "yoochoose1_4":
         n_node = 37484
+    elif opt.dataset == "otto-recsys":
+        n_node = 19679 + 1
     else:
         n_node = 310
 
