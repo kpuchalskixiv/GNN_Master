@@ -292,7 +292,10 @@ class SRGNN_model(pl.LightningModule):
         if self.current_epoch == self.unfreeze_epoch:
             self.unfreeze_embeddings()
 
+
 import pickle
+
+
 class GMMSessionGraph(Module):
     def __init__(self, opt, n_node):
         super().__init__()
@@ -310,15 +313,13 @@ class GMMSessionGraph(Module):
         self.loss_function = nn.CrossEntropyLoss()
 
         with open(
-                f"../datasets/{opt.dataset}/gmm_model_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.gmm_covariance_type}_{opt.gmm_tol}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
-                "rb",
-            ) as f:
-            self.gmm=pickle.load(f)
+            f"../datasets/{opt.dataset}/gmm_model_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.gmm_covariance_type}_{opt.gmm_tol}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
+            "rb",
+        ) as f:
+            self.gmm = pickle.load(f)
 
-        self.cluster_embeddings=nn.Embedding(self.gmm.n_components, self.hidden_size)
-        self.gm_transform = nn.Linear(
-            self.hidden_size * 2, self.hidden_size, bias=True
-        )
+        self.cluster_embeddings = nn.Embedding(self.gmm.n_components, self.hidden_size)
+        self.gm_transform = nn.Linear(self.hidden_size * 2, self.hidden_size, bias=True)
         #  self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.lr, weight_decay=opt.l2)
         #  self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc)
         self.reset_parameters(opt.weight_init)
@@ -353,14 +354,16 @@ class GMMSessionGraph(Module):
         q2 = self.linear_two(hidden)  # batch_size x seq_length x latent_size
         alpha = self.linear_three(torch.sigmoid(q1 + q2))
         a = torch.sum(alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1)
-        # a is batchXhidden_size        
+        # a is batchXhidden_size
 
-        session_cluster=torch.tensor(self.gmm.predict(a.cpu().detach().numpy()), dtype=torch.int32).to(a.device)
-        session_cluster_emb=self.cluster_embeddings(session_cluster)
-        
+        session_cluster = torch.tensor(
+            self.gmm.predict(a.cpu().detach().numpy()), dtype=torch.int32
+        ).to(a.device)
+        session_cluster_emb = self.cluster_embeddings(session_cluster)
+
         a = self.linear_transform(torch.cat([a, ht, session_cluster_emb], 1))
 
-        #a = self.gm_transform(torch.cat([a, session_cluster_emb], 1))
+        # a = self.gm_transform(torch.cat([a, session_cluster_emb], 1))
 
         b = self.embedding.weight[1:]  # n_nodes x latent_size
         scores = torch.matmul(a, b.transpose(1, 0))

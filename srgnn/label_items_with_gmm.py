@@ -57,8 +57,8 @@ parser.add_argument(
     help="The convergence threshold.",
 )
 
-def main(flags_str=""):
 
+def main(flags_str=""):
     if flags_str:
         parser_opt = parser.parse_args(flags_str.split())
     else:

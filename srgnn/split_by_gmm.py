@@ -33,7 +33,7 @@ def main():
     else:
         with open(f"./wandb/{run_id}/files/config.yaml", "r") as stream:
             config = yaml.safe_load(stream)
-            
+
     keys = list(config.keys())
     for k in keys:
         if k not in fake_parser().__dict__.keys():

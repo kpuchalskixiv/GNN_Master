@@ -85,7 +85,7 @@ def main():
         opt.lr = 1e-4
     ## decrease validation ratio and increase patinece, as we have much fewer data per model
     opt.valid_portion = 0.1
-    #opt.patience = 8
+    # opt.patience = 8
     opt.lr_dc_step = 2
     print(opt.__dict__)
 
@@ -168,7 +168,7 @@ def main():
         model.hparams.lr_dc = opt.lr_dc
         model.hparams.l2 = opt.l2
         model.hparams.lr_milestones = opt.lr_milestones
-        model.hparams.unfreeze_epoch=opt.unfreeze_epoch
+        model.hparams.unfreeze_epoch = opt.unfreeze_epoch
 
         model.save_hyperparameters(ignore=["opt", "init_embeddings"])
         model.configure_optimizers()

@@ -47,7 +47,6 @@ parser.add_argument(
 
 
 def main(flags_str=""):
-
     if flags_str:
         parser_opt = parser.parse_args(flags_str.split())
     else:

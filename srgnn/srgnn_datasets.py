@@ -168,8 +168,8 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
 
         if self.noise_std:
             noise_M = np.random.random(size=(n, n)) < self.noise_p
-            noise_M[0]=0
-            noise_M[:, 0]=0 # zero out values for padding item - number 0
+            noise_M[0] = 0
+            noise_M[:, 0] = 0  # zero out values for padding item - number 0
             M += noise_M * np.random.normal(
                 loc=self.noise_mean, scale=self.noise_std, size=(n, n)
             )
@@ -196,7 +196,6 @@ class SRGNN_Map_Dataset(data_utils.Dataset):
         return inputs, mask, targets, max_n_node
 
     def __getitem__(self, idxs):
-
         inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)
         items, A, alias_inputs = [], [], []
 
@@ -457,7 +456,9 @@ class Clusters_Matrix_Dataset(AugmentDataset):
             self.cluster_distances[self.cluster_distances == np.inf] = 0
             s = self.cluster_distances.sum(axis=1)
             self.cluster_distances = self.cluster_distances / s.reshape(no_clusters, 1)
-            self.cluster_distances = self.cluster_distances / self.cluster_distances.max()
+            self.cluster_distances = (
+                self.cluster_distances / self.cluster_distances.max()
+            )
 
     def __getitem__(self, idxs):
         inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)

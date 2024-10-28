@@ -33,7 +33,7 @@ from srgnn_datasets import (
     SRGNN_sampler,
 )
 from srgnn_model import GMGNN_model
-from utils import calculate_embeddings, fake_parser, split_validation, load_model
+from utils import calculate_embeddings, fake_parser, load_model, split_validation
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -233,7 +233,6 @@ def train_gm(model, dataset, dataloader, run_id, components=[32]):
 
 
 def main(flags_str=""):
-
     if flags_str:
         opt = parser.parse_args(flags_str.split())
     else:
@@ -354,8 +353,7 @@ def main(flags_str=""):
             del valid_data
 
         elif opt.augment_alg == "raw":
-            
-            old_model, old_opt=load_model(opt.augment_old_run_id, False)
+            old_model, old_opt = load_model(opt.augment_old_run_id, False)
 
             assert (
                 old_opt.dataset == opt.dataset

@@ -8,37 +8,30 @@ Created on July, 2018
 
 import os
 import pickle
+from parser import parser
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
-import yaml
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
 )
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 import wandb
-from srgnn_datasets import (
-    SRGNN_Map_Dataset,
-    SRGNN_sampler,
-)
+from srgnn_datasets import SRGNN_Map_Dataset, SRGNN_sampler
 from tagnn_model import TAGNN_model
-from utils import calculate_embeddings, split_validation,get_dataset
-from parser import parser 
+from utils import calculate_embeddings, get_dataset, split_validation
 
 
 def main(flags_str=""):
-
     if flags_str:
         opt = parser.parse_args(flags_str.split())
     else:
         opt = parser.parse_args()
     print(opt)
-    
+
     assert (
         opt.lr_dc_step < opt.patience
     ), "lr decrease patience is bigger or equal to early stopping patience. Please change either or both"
@@ -86,7 +79,7 @@ def main(flags_str=""):
         del items_in_train
         del item2id
 
-    train_dataset=get_dataset(opt, train_data, shuffle=True)
+    train_dataset = get_dataset(opt, train_data, shuffle=True)
     del train_data
     val_dataset = SRGNN_Map_Dataset(valid_data)
     del valid_data
@@ -137,6 +130,7 @@ def main(flags_str=""):
     print("Finished training. Run id: ", run_id)
     wandb.finish()
     return run_id
+
 
 if __name__ == "__main__":
     main()

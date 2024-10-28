@@ -1,6 +1,5 @@
 import argparse
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--dataset",
@@ -42,7 +41,11 @@ parser.add_argument(
 parser.add_argument(
     "--nonhybrid", action="store_true", help="only use the global preference to predict"
 )
-parser.add_argument("--validation", action="store_true", help="[Depraceted] - always use validation. For testing refer to included notebooks.")
+parser.add_argument(
+    "--validation",
+    action="store_true",
+    help="[Depraceted] - always use validation. For testing refer to included notebooks.",
+)
 parser.add_argument(
     "--valid-portion",
     type=float,
@@ -176,4 +179,3 @@ parser.add_argument(
     choices=["gmm", "kmeans", "categories", "raw"],
     help="Augment with clusters distance based on GMM, KMeans or basic dataset item categories, eventually with raw item2item distance.",
 )
-

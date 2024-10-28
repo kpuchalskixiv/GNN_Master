@@ -22,7 +22,7 @@ from srgnn_datasets import (
     Clusters_Matrix_Dataset,
     SRGNN_Map_Dataset,
 )
-from srgnn_model import SRGNN_model, GMGNN_model
+from srgnn_model import GMGNN_model, SRGNN_model
 from tagnn_model import TAGNN_model
 
 
@@ -36,8 +36,8 @@ class fake_parser:
         lr=1e-3,
         lr_dc=0.1,
         lr_dc_step=3,
-        lr_scheduler='step',
-        lr_milestones=[2,5,8],
+        lr_scheduler="step",
+        lr_milestones=[2, 5, 8],
         l2=1e-5,
         step=1,
         patience=6,
@@ -62,8 +62,8 @@ class fake_parser:
         augment_mean=0.01,
         augment_std=0,
         augment_prenormalize_distances=False,
-        augment_alg='gmm',
-        gmm_covariance_type='full',
+        augment_alg="gmm",
+        gmm_covariance_type="full",
         gmm_tol=1e-3,
     ):
         self.dataset = dataset
@@ -74,7 +74,7 @@ class fake_parser:
         self.lr_dc = lr_dc
         self.lr_dc_step = lr_dc_step
         self.lr_scheduler = lr_scheduler
-        self.lr_milestones=lr_milestones,
+        self.lr_milestones = (lr_milestones,)
         self.l2 = l2
         self.step = step
         self.patience = patience
@@ -99,9 +99,9 @@ class fake_parser:
         self.augment_gmm_init = augment_gmm_init
         self.augment_prenormalize_distances = augment_prenormalize_distances
         self.augment_noise_p = augment_noise_p
-        self.augment_alg=augment_alg
-        self.gmm_covariance_type=gmm_covariance_type
-        self.gmm_tol=gmm_tol
+        self.augment_alg = augment_alg
+        self.gmm_covariance_type = gmm_covariance_type
+        self.gmm_tol = gmm_tol
 
 
 def build_graph(train_data):
@@ -182,7 +182,6 @@ def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node, epoch
 
 
 def load_model(run_id, tagnn=False):
-
     if len(run_id.split("-")) == 1:
         full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
         with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
@@ -192,8 +191,8 @@ def load_model(run_id, tagnn=False):
             config = yaml.safe_load(stream)
 
     keys = list(config.keys())
-    if config['name']["value"]=='TAGNN':
-        tagnn=True    
+    if config["name"]["value"] == "TAGNN":
+        tagnn = True
     for k in keys:
         if k not in fake_parser().__dict__.keys():
             del config[k]
@@ -220,7 +219,6 @@ def load_model(run_id, tagnn=False):
 
 
 def load_model_gm(run_id, tagnn=False):
-
     if len(run_id.split("-")) == 1:
         full_run_id = [x for x in os.listdir("./wandb") if run_id in x][0]
         with open(f"./wandb/{full_run_id}/files/config.yaml", "r") as stream:
@@ -254,6 +252,7 @@ def load_model_gm(run_id, tagnn=False):
 
     return model, opt
 
+
 def get_dataset(opt, data=None, shuffle=False):
     if not data:
         data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
@@ -284,7 +283,7 @@ def get_dataset(opt, data=None, shuffle=False):
                 data=data,
                 shuffle=shuffle,
             )
-        elif opt.augment_alg=='kmeans':
+        elif opt.augment_alg == "kmeans":
             with open(
                 f"../datasets/{opt.dataset}/item_labels_{opt.augment_alg}_{opt.augment_nogmm}_{opt.augment_gmm_init}_{opt.hiddenSize}_{opt.augment_old_run_id.split('-')[-1]}.txt",
                 "rb",
@@ -335,8 +334,7 @@ def get_dataset(opt, data=None, shuffle=False):
                 shuffle=shuffle,
             )
         elif opt.augment_alg == "raw":
-            
-            old_model, old_opt=load_model(opt.augment_old_run_id, False)
+            old_model, old_opt = load_model(opt.augment_old_run_id, False)
             assert (
                 old_opt.dataset == opt.dataset
             ), f"Different datasets used in old ({old_opt.dataset}) and current ({opt.dataset}) models!"
@@ -345,7 +343,7 @@ def get_dataset(opt, data=None, shuffle=False):
             ), f"Different hidden size used in old ({old_opt.hiddenSize}) and current ({opt.hiddenSize}) models!"
 
             emb_model = old_model.model.embedding
-            del old_model            
+            del old_model
             dataset = Augment_Matrix_Dataset(
                 emb_model,
                 clip=opt.augment_clip,
