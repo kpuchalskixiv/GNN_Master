@@ -42,7 +42,7 @@ parser.add_argument(
 parser.add_argument(
     "--nonhybrid", action="store_true", help="only use the global preference to predict"
 )
-parser.add_argument("--validation", action="store_true", help="validation")
+parser.add_argument("--validation", action="store_true", help="[Depraceted] - always use validation. For testing refer to included notebooks.")
 parser.add_argument(
     "--valid-portion",
     type=float,

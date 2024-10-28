@@ -8,7 +8,6 @@ Created on July, 2018
 
 import os
 import pickle
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -26,13 +25,11 @@ from tqdm import tqdm
 
 import wandb
 from srgnn_datasets import (
-    Augment_Matrix_Dataset,
-    Clusters_Matrix_Dataset,
     SRGNN_Map_Dataset,
     SRGNN_sampler,
 )
 from srgnn_model import SRGNN_model
-from utils import calculate_embeddings, fake_parser, split_validation, load_model, get_dataset
+from utils import calculate_embeddings, split_validation, get_dataset
 from parser import parser
 
 def train_gm(model, dataset, dataloader, run_id, opt):
@@ -69,10 +66,9 @@ def main(flags_str=""):
 
     torch.set_float32_matmul_precision("medium")
     train_data = pickle.load(open("../datasets/" + opt.dataset + "/train.txt", "rb"))
-    if opt.validation:
-        train_data, valid_data = split_validation(train_data, opt.valid_portion)
-    else:
-        test_data = pickle.load(open("../datasets/" + opt.dataset + "/test.txt", "rb"))
+
+    train_data, valid_data = split_validation(train_data, opt.valid_portion)
+
 
     if opt.dataset == "amazon_cd":
         n_node = 157661 + 1
