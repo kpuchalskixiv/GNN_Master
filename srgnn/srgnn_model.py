@@ -7,6 +7,7 @@ Created on July, 2018
 """
 
 import math
+import logging
 
 import pytorch_lightning as pl
 import torch
@@ -288,7 +289,7 @@ class SRGNN_model(pl.LightningModule):
     def freeze_embeddings(self):
         self.model.embedding.requires_grad_(False)
 
-    def on_train_epoch_end(self):
+    def on_train_epoch_start(self):
         if self.current_epoch == self.unfreeze_epoch:
             self.unfreeze_embeddings()
 

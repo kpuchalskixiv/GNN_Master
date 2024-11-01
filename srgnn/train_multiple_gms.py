@@ -81,8 +81,8 @@ def main():
     opt = fake_parser(**config)
     if flags.finetune:
         opt.pretrained_embedings = False
-        opt.unfreeze_epoch = 2
-        opt.lr = 1e-4
+        opt.unfreeze_epoch = 1
+        opt.lr = 1e-3
     ## decrease validation ratio and increase patinece, as we have much fewer data per model
     opt.valid_portion = 0.1
     # opt.patience = 8
@@ -160,7 +160,7 @@ def main():
         if opt.unfreeze_epoch > 0:
             model.freeze_embeddings()
 
-        model.hparams.dataset = opt.dataset + "_cluster_" + str(no_clusters)
+        model.hparams.dataset = opt.dataset+f'_{run_id.split('-')[-1]}' + "_cluster_" + str(no_clusters)
         model.hparams.name += "_cluster_" + str(no_clusters)
 
         model.lr = opt.lr
