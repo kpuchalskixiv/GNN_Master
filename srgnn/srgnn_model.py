@@ -6,8 +6,8 @@ Created on July, 2018
 @author: Tangrizzly
 """
 
-import math
 import logging
+import math
 
 import pytorch_lightning as pl
 import torch

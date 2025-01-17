@@ -160,7 +160,9 @@ def main():
         if opt.unfreeze_epoch > 0:
             model.freeze_embeddings()
 
-        model.hparams.dataset = opt.dataset+f'_{run_id.split('-')[-1]}' + "_cluster_" + str(no_clusters)
+        model.hparams.dataset = (
+            opt.dataset + f'_{run_id.split("-")[-1]}_cluster_{no_clusters}'
+        )
         model.hparams.name += "_cluster_" + str(no_clusters)
 
         model.lr = opt.lr

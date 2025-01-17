@@ -375,7 +375,7 @@ class Augment_Matrix_Dataset(
         inputs, mask, targets, max_n_node = self._collect_correct_samples(idxs)
         items, A, alias_inputs = [], [], []
 
-        for u_input in inputs:
+        for u_input in inputs: 
             loops = []
             node = np.unique(u_input)
             item_embeddigs = (
